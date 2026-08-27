@@ -96,6 +96,8 @@
         .btn-geojson:hover { background: #e06b0a; }
         .btn-reset { background: #dc3545; color: white; }
         .btn-reset:hover { background: #c82333; }
+        .btn-test { background: #6f42c1; color: white; }
+        .btn-test:hover { background: #5a32a3; }
 
         .info-panel {
             margin-top: 8px;
@@ -209,6 +211,24 @@
             transition: width 0.3s;
         }
 
+        .debug-console {
+            position: absolute;
+            bottom: 40px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.85);
+            color: #0f0;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            max-width: 350px;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+            pointer-events: none;
+        }
+
         @media (max-width: 600px) {
             .control-panel { 
                 top: 6px; 
@@ -221,6 +241,7 @@
             .info-panel .stat-grid { grid-template-columns: 1fr 1fr; }
             .info-panel .stat-item .num { font-size: 10px; }
             .loading { min-width: 180px; padding: 15px 20px; }
+            .debug-console { max-width: 180px; font-size: 8px; }
         }
     </style>
 </head>
@@ -236,6 +257,9 @@
         <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
         <div id="loading-status"></div>
     </div>
+
+    <!-- Debug Console -->
+    <div class="debug-console" id="debugConsole"></div>
 
     <div class="control-panel">
         <h3>🗺️ Panamá - División Administrativa</h3>
@@ -278,6 +302,7 @@
             <button class="btn-geojson" onclick="exportarGeoJSON()">📥 GeoJSON</button>
             <button class="btn-export" onclick="exportarCSV()">📊 CSV</button>
             <button class="btn-reset" onclick="resetearMapa()">🔄 Reset</button>
+            <button class="btn-test" onclick="testGeometrias()">🔍 Test</button>
         </div>
 
         <div class="info-panel" id="info-panel">
@@ -297,7 +322,22 @@
     
     <script>
         // ================================================================
-        // 1. MAPA
+        // 1. DEBUG
+        // ================================================================
+        function debugLog(msg, type = 'info') {
+            const console = document.getElementById('debugConsole');
+            console.style.display = 'block';
+            const colors = { info: '#0f0', warn: '#ff0', error: '#f00', success: '#0f0' };
+            const prefix = { info: 'ℹ️', warn: '⚠️', error: '❌', success: '✅' };
+            console.innerHTML += `<div style="color:${colors[type] || '#0f0'}">
+                ${prefix[type] || 'ℹ️'} ${new Date().toLocaleTimeString()}: ${msg}
+            </div>`;
+            console.scrollTop = console.scrollHeight;
+            console.log(msg);
+        }
+
+        // ================================================================
+        // 2. MAPA
         // ================================================================
         const map = L.map('map', { center: [8.5, -80.0], zoom: 7 });
 
@@ -321,7 +361,7 @@
         layers.satellite.addTo(map);
 
         // ================================================================
-        // 2. VARIABLES GLOBALES
+        // 3. VARIABLES GLOBALES
         // ================================================================
         let geoData = {
             provincias: null,
@@ -343,14 +383,15 @@
 
         const colores = [
             '#2c6b9e', '#28a745', '#dc3545', '#fd7e14', '#6f42c1',
-            '#20c997', '#e83e8c', '#17a2b8', '#ffc107', '#6c757d'
+            '#20c997', '#e83e8c', '#17a2b8', '#ffc107', '#6c757d',
+            '#d63384', '#0dcaf0', '#198754', '#ff6b35', '#7b2fbe'
         ];
 
         let datosCargados = 0;
         const totalArchivos = 5;
 
         // ================================================================
-        // 3. FUNCIONES DE CARGA
+        // 4. FUNCIONES DE CARGA CON DIAGNÓSTICO
         // ================================================================
         function actualizarProgress() {
             const pct = Math.round((datosCargados / totalArchivos) * 100);
@@ -361,6 +402,7 @@
 
         async function cargarGeoJSON(tipo, url) {
             try {
+                debugLog(`Cargando ${tipo} desde ${url}...`, 'info');
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 
@@ -370,13 +412,43 @@
                     throw new Error('Formato inválido: no tiene "features"');
                 }
                 
+                // Verificar geometría
+                let geometriasValidas = 0;
+                let geometriasInvalidas = 0;
+                data.features.forEach(f => {
+                    if (f.geometry && f.geometry.type) {
+                        geometriasValidas++;
+                    } else {
+                        geometriasInvalidas++;
+                    }
+                });
+                
+                debugLog(`✅ ${tipo} cargado: ${data.features.length} registros`, 'success');
+                debugLog(`   📐 Geometrías válidas: ${geometriasValidas}, inválidas: ${geometriasInvalidas}`, 'info');
+                
+                // Mostrar ejemplo de geometría
+                if (data.features.length > 0 && data.features[0].geometry) {
+                    const geom = data.features[0].geometry;
+                    debugLog(`   📐 Ejemplo geometría: ${geom.type}`, 'info');
+                    if (geom.type === 'MultiPolygon' && geom.coordinates && geom.coordinates.length > 0) {
+                        debugLog(`   📐 Primer polígono: ${geom.coordinates[0].length} anillos`, 'info');
+                    } else if (geom.type === 'Polygon' && geom.coordinates && geom.coordinates.length > 0) {
+                        debugLog(`   📐 Primer polígono: ${geom.coordinates[0].length} puntos`, 'info');
+                    }
+                }
+                
+                // Mostrar campos disponibles
+                if (data.features.length > 0 && data.features[0].properties) {
+                    const campos = Object.keys(data.features[0].properties);
+                    debugLog(`   📋 Campos: ${campos.slice(0, 10).join(', ')}${campos.length > 10 ? '...' : ''}`, 'info');
+                }
+                
                 geoData[tipo] = data;
                 datosCargados++;
                 actualizarProgress();
-                console.log(`✅ ${tipo} cargado: ${data.features.length} registros`);
                 return data;
             } catch (error) {
-                console.warn(`⚠️ Error cargando ${tipo}: ${error.message}`);
+                debugLog(`Error cargando ${tipo}: ${error.message}`, 'error');
                 datosCargados++;
                 actualizarProgress();
                 return null;
@@ -389,6 +461,8 @@
             document.getElementById('loading-title').textContent = 'Cargando datos...';
             document.getElementById('loading-status').innerHTML = '';
             document.getElementById('progress-bar').style.width = '0%';
+
+            debugLog('🚀 Iniciando carga de todos los datos...', 'info');
 
             // Cargar todos los archivos
             await Promise.all([
@@ -412,6 +486,7 @@
                         🔄 Reintentar
                     </button>
                 `;
+                debugLog('❌ Error crítico: no se cargaron provincias', 'error');
                 return;
             }
 
@@ -436,6 +511,8 @@
                 select.appendChild(option);
             });
 
+            debugLog(`✅ Select de provincias poblado con ${features.length} opciones`, 'success');
+
             // Mostrar todas las provincias en el mapa
             mostrarTodasLasProvincias();
 
@@ -449,33 +526,59 @@
                 </div>
             `;
 
+            debugLog('✅ Carga completada exitosamente', 'success');
+
             setTimeout(() => {
                 loading.style.display = 'none';
             }, 800);
         }
 
         // ================================================================
-        // 4. MOSTRAR EN MAPA
+        // 5. MOSTRAR EN MAPA CON ESTILO VISIBLE
         // ================================================================
         function mostrarTodasLasProvincias() {
-            if (!geoData.provincias) return;
+            if (!geoData.provincias) {
+                debugLog('No hay provincias para mostrar', 'warn');
+                return;
+            }
             
-            if (currentLayerGeo) map.removeLayer(currentLayerGeo);
+            if (currentLayerGeo) {
+                map.removeLayer(currentLayerGeo);
+                currentLayerGeo = null;
+            }
 
             const features = geoData.provincias.features;
+            debugLog(`Mostrando ${features.length} provincias en el mapa`, 'info');
+            
+            // Verificar que las geometrías sean válidas
+            let featuresValidas = features.filter(f => f.geometry && f.geometry.type);
+            if (featuresValidas.length === 0) {
+                debugLog('⚠️ Ninguna provincia tiene geometría válida', 'error');
+                document.getElementById('info-content').innerHTML = `
+                    <p style="color:#dc3545;font-size:10px;">
+                        ⚠️ Las provincias no tienen geometría válida.<br>
+                        Verifica el archivo GeoJSON.
+                    </p>
+                `;
+                return;
+            }
+            
+            if (featuresValidas.length < features.length) {
+                debugLog(`⚠️ ${features.length - featuresValidas.length} provincias sin geometría`, 'warn');
+            }
             
             currentLayerGeo = L.geoJSON({
                 type: 'FeatureCollection',
-                features: features
+                features: featuresValidas
             }, {
                 style: function(feature, index) {
                     const idx = index % colores.length;
                     return {
                         fillColor: colores[idx],
-                        fillOpacity: 0.2,
+                        fillOpacity: 0.35,
                         color: colores[idx],
-                        weight: 1.5,
-                        opacity: 0.6
+                        weight: 2,
+                        opacity: 0.8
                     };
                 },
                 onEachFeature: function(f, layer) {
@@ -495,22 +598,47 @@
                 }
             }).addTo(map);
 
-            const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
+            debugLog(`✅ ${featuresValidas.length} provincias mostradas en el mapa`, 'success');
+
+            const bounds = L.geoJSON({ type: 'FeatureCollection', features: featuresValidas }).getBounds();
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [20, 20] });
+                debugLog('📍 Zoom ajustado a todas las provincias', 'info');
+            } else {
+                debugLog('⚠️ No se pudo ajustar el zoom', 'warn');
+            }
         }
 
         function mostrarPoligono(feature) {
-            if (!feature) return;
-            if (currentLayerGeo) map.removeLayer(currentLayerGeo);
-            if (highlightLayer) map.removeLayer(highlightLayer);
+            if (!feature) {
+                debugLog('No hay feature para mostrar', 'warn');
+                return;
+            }
+            
+            // Verificar geometría
+            if (!feature.geometry || !feature.geometry.type) {
+                debugLog('⚠️ El feature no tiene geometría válida', 'error');
+                return;
+            }
+            
+            if (currentLayerGeo) {
+                map.removeLayer(currentLayerGeo);
+                currentLayerGeo = null;
+            }
+            if (highlightLayer) {
+                map.removeLayer(highlightLayer);
+                highlightLayer = null;
+            }
+
+            debugLog(`Mostrando polígono: ${feature.properties.PROV_NOMB || feature.properties.DIST_NOMB || 'Área'}`, 'info');
 
             currentLayerGeo = L.geoJSON(feature, {
                 style: {
                     fillColor: '#2c6b9e',
-                    fillOpacity: 0.25,
+                    fillOpacity: 0.35,
                     color: '#1a4a7a',
-                    weight: 2.5,
-                    opacity: 0.8
+                    weight: 3,
+                    opacity: 0.9
                 },
                 onEachFeature: function(f, layer) {
                     const props = f.properties;
@@ -523,37 +651,57 @@
             highlightLayer = L.geoJSON(feature, {
                 style: {
                     fillColor: 'transparent',
-                    color: '#2c6b9e',
+                    color: '#ff6b35',
                     weight: 4,
-                    opacity: 0.6,
-                    dashArray: '5, 5'
+                    opacity: 0.8,
+                    dashArray: '6, 4'
                 }
             }).addTo(map);
 
+            debugLog('✅ Polígono mostrado con borde resaltado', 'success');
             zoomAFeature(feature);
         }
 
         function mostrarTodosLosPoligonos(features, titulo) {
             if (!features || features.length === 0) {
-                if (currentLayerGeo) map.removeLayer(currentLayerGeo);
+                debugLog(`No hay ${titulo} para mostrar`, 'warn');
+                if (currentLayerGeo) {
+                    map.removeLayer(currentLayerGeo);
+                    currentLayerGeo = null;
+                }
                 return;
             }
             
-            if (currentLayerGeo) map.removeLayer(currentLayerGeo);
-            if (highlightLayer) map.removeLayer(highlightLayer);
+            // Filtrar features con geometría válida
+            const featuresValidas = features.filter(f => f.geometry && f.geometry.type);
+            if (featuresValidas.length === 0) {
+                debugLog(`⚠️ Ningún ${titulo} tiene geometría válida`, 'error');
+                return;
+            }
+            
+            if (currentLayerGeo) {
+                map.removeLayer(currentLayerGeo);
+                currentLayerGeo = null;
+            }
+            if (highlightLayer) {
+                map.removeLayer(highlightLayer);
+                highlightLayer = null;
+            }
+
+            debugLog(`Mostrando ${featuresValidas.length} ${titulo} en el mapa`, 'info');
 
             currentLayerGeo = L.geoJSON({
                 type: 'FeatureCollection',
-                features: features
+                features: featuresValidas
             }, {
                 style: function(feature, index) {
                     const idx = index % colores.length;
                     return {
                         fillColor: colores[idx],
-                        fillOpacity: 0.15,
+                        fillOpacity: 0.25,
                         color: colores[idx],
-                        weight: 1.2,
-                        opacity: 0.5
+                        weight: 1.5,
+                        opacity: 0.6
                     };
                 },
                 onEachFeature: function(f, layer) {
@@ -564,12 +712,29 @@
                     layer.on('click', function() {
                         mostrarInfo(props, titulo);
                         zoomAFeature(f);
+                        // Resaltar el polígono seleccionado
+                        if (highlightLayer) {
+                            map.removeLayer(highlightLayer);
+                        }
+                        highlightLayer = L.geoJSON(f, {
+                            style: {
+                                fillColor: 'transparent',
+                                color: '#ff6b35',
+                                weight: 3,
+                                opacity: 0.8,
+                                dashArray: '5, 5'
+                            }
+                        }).addTo(map);
                     });
                 }
             }).addTo(map);
 
-            const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+            debugLog(`✅ ${featuresValidas.length} ${titulo} mostrados`, 'success');
+
+            const bounds = L.geoJSON({ type: 'FeatureCollection', features: featuresValidas }).getBounds();
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [30, 30] });
+            }
         }
 
         function zoomAFeature(feature) {
@@ -577,14 +742,18 @@
                 const bounds = L.geoJSON(feature).getBounds();
                 if (bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+                    debugLog('📍 Zoom ajustado al área seleccionada', 'info');
                 }
-            } catch (e) {}
+            } catch (e) {
+                debugLog(`Error al hacer zoom: ${e.message}`, 'warn');
+            }
         }
 
         // ================================================================
-        // 5. SELECCIONES ENCadenadas
+        // 6. SELECCIONES ENCADENADAS
         // ================================================================
         function cargarDistritos() {
+            debugLog('Cargando distritos...', 'info');
             const provSelect = document.getElementById('provincia-select');
             const distSelect = document.getElementById('distrito-select');
             const corrSelect = document.getElementById('corregimiento-select');
@@ -612,12 +781,27 @@
                 currentSelected.provincia = JSON.parse(provFeature);
                 mostrarInfo(currentSelected.provincia.properties, 'Provincia');
                 zoomAFeature(currentSelected.provincia);
+                // Resaltar la provincia seleccionada
+                if (highlightLayer) {
+                    map.removeLayer(highlightLayer);
+                }
+                highlightLayer = L.geoJSON(currentSelected.provincia, {
+                    style: {
+                        fillColor: 'transparent',
+                        color: '#ff6b35',
+                        weight: 4,
+                        opacity: 0.8,
+                        dashArray: '6, 4'
+                    }
+                }).addTo(map);
             }
 
             const distritos = geoData.distritos.features.filter(f => {
                 const p = f.properties;
                 return p.PROV_ID === provId || p.ID_PROV === provId || p.COD_PROV === provId;
             });
+
+            debugLog(`Distritos encontrados para provincia ${provId}: ${distritos.length}`, 'info');
 
             if (distritos.length === 0) {
                 mostrarPoligono(currentSelected.provincia);
@@ -644,6 +828,7 @@
         }
 
         function cargarCorregimientos() {
+            debugLog('Cargando corregimientos...', 'info');
             const distSelect = document.getElementById('distrito-select');
             const corrSelect = document.getElementById('corregimiento-select');
             const lugarSelect = document.getElementById('lugar-select');
@@ -671,6 +856,8 @@
                 return p.DIST_ID === distId || p.ID_DIST === distId || p.COD_DIST === distId;
             });
 
+            debugLog(`Corregimientos encontrados para distrito ${distId}: ${corregimientos.length}`, 'info');
+
             if (corregimientos.length === 0) {
                 mostrarPoligono(currentSelected.distrito);
                 return;
@@ -696,6 +883,7 @@
         }
 
         function cargarLugares() {
+            debugLog('Cargando lugares poblados...', 'info');
             const corrSelect = document.getElementById('corregimiento-select');
             const lugarSelect = document.getElementById('lugar-select');
             const barrioSelect = document.getElementById('barrio-select');
@@ -719,6 +907,8 @@
                 const p = f.properties;
                 return p.CORR_ID === corrId || p.ID_CORR === corrId || p.COD_CORR === corrId;
             });
+
+            debugLog(`Lugares encontrados para corregimiento ${corrId}: ${lugares.length}`, 'info');
 
             if (lugares.length === 0) {
                 mostrarPoligono(currentSelected.corregimiento);
@@ -745,6 +935,7 @@
         }
 
         function cargarBarrios() {
+            debugLog('Cargando barrios...', 'info');
             const lugarSelect = document.getElementById('lugar-select');
             const barrioSelect = document.getElementById('barrio-select');
 
@@ -765,6 +956,8 @@
                 const p = f.properties;
                 return p.LUPO_ID === lugarId || p.ID_LUPO === lugarId || p.COD_LUPO === lugarId;
             });
+
+            debugLog(`Barrios encontrados para lugar ${lugarId}: ${barrios.length}`, 'info');
 
             if (barrios.length === 0) {
                 mostrarPoligono(currentSelected.lugar);
@@ -805,7 +998,7 @@
         }
 
         // ================================================================
-        // 6. PANEL DE INFORMACIÓN
+        // 7. PANEL DE INFORMACIÓN CON CONVERSIÓN A NÚMEROS
         // ================================================================
         function mostrarInfo(props, titulo) {
             const container = document.getElementById('info-content');
@@ -815,32 +1008,37 @@
             const id = props.PROV_ID || props.DIST_ID || props.CORR_ID || 
                        props.LUPO_ID || props.BARR_ID || 'N/A';
             
-            const poblacion = Number(props.N_PERSONAS) || 0;
-            const viviendas = Number(props.N_VIVIENDA) || 0;
-            const area = Number(props.AREA) || 0;
-            const hombres = Number(props.P_HOMBRES) || 0;
-            const mujeres = Number(props.P_MUJERES) || 0;
-            const analf = Number(props.ANALFAB) || 0;
-            const desocup = Number(props.DESOCUP) || 0;
-            const sinAgua = Number(props.SIN_AGUA) || 0;
-            const sinLuz = Number(props.SIN_LUZ) || 0;
-            const sinInternet = Number(props.SIN_INTERN) || 0;
-            const conDisc = Number(props.CON_DISC) || 0;
+            // Convertir a números con parseFloat
+            const poblacion = parseFloat(props.N_PERSONAS) || 0;
+            const viviendas = parseFloat(props.N_VIVIENDA) || 0;
+            const area = parseFloat(props.AREA) || 0;
+            const hombres = parseFloat(props.P_HOMBRES) || 0;
+            const mujeres = parseFloat(props.P_MUJERES) || 0;
+            const analf = parseFloat(props.ANALFAB) || 0;
+            const desocup = parseFloat(props.DESOCUP) || 0;
+            const sinAgua = parseFloat(props.SIN_AGUA) || 0;
+            const sinLuz = parseFloat(props.SIN_LUZ) || 0;
+            const sinInternet = parseFloat(props.SIN_INTERN) || 0;
+            const conDisc = parseFloat(props.CON_DISC) || 0;
+            const mayor18 = parseFloat(props.MAYOR_18) || 0;
+            const sinServSan = parseFloat(props.SIN_SER_SA) || 0;
+
+            debugLog(`Mostrando info de ${titulo}: ${nombre} (Población: ${poblacion})`, 'info');
 
             let html = `<h4>${titulo}: ${nombre}</h4>`;
 
             // Grid de estadísticas principales
             html += `<div class="stat-grid">
                 <div class="stat-item">
-                    <span class="num">${poblacion.toLocaleString()}</span>
+                    <span class="num">${poblacion > 0 ? poblacion.toLocaleString() : 'N/D'}</span>
                     <span class="label">Población</span>
                 </div>
                 <div class="stat-item">
-                    <span class="num">${viviendas.toLocaleString()}</span>
+                    <span class="num">${viviendas > 0 ? viviendas.toLocaleString() : 'N/D'}</span>
                     <span class="label">Viviendas</span>
                 </div>
                 <div class="stat-item">
-                    <span class="num">${viviendas > 0 ? (poblacion / viviendas).toFixed(2) : 'N/D'}</span>
+                    <span class="num">${viviendas > 0 && poblacion > 0 ? (poblacion / viviendas).toFixed(2) : 'N/D'}</span>
                     <span class="label">Pers./Viv.</span>
                 </div>
             </div>`;
@@ -848,18 +1046,20 @@
             // Detalles
             html += `<div style="margin-top:4px;">`;
             const detalles = [
-                ['Hombres', hombres.toLocaleString()],
-                ['Mujeres', mujeres.toLocaleString()],
-                ['Área (km²)', area > 0 ? area.toFixed(2) : 'N/D'],
-                ['Analfabetismo', analf > 0 ? analf.toFixed(1) + '%' : 'N/D'],
-                ['Desocupación', desocup > 0 ? desocup.toFixed(1) + '%' : 'N/D'],
-                ['Sin agua', sinAgua > 0 ? sinAgua.toFixed(1) + '%' : 'N/D'],
-                ['Sin luz', sinLuz > 0 ? sinLuz.toFixed(1) + '%' : 'N/D'],
-                ['Sin internet', sinInternet > 0 ? sinInternet.toFixed(1) + '%' : 'N/D'],
-                ['Con discapacidad', conDisc > 0 ? conDisc.toLocaleString() : 'N/D']
+                ['Hombres', hombres > 0 ? hombres.toLocaleString() : null],
+                ['Mujeres', mujeres > 0 ? mujeres.toLocaleString() : null],
+                ['Mayores de 18', mayor18 > 0 ? mayor18.toLocaleString() : null],
+                ['Área (km²)', area > 0 ? area.toFixed(2) : null],
+                ['Analfabetismo', analf > 0 ? analf.toFixed(1) + '%' : null],
+                ['Desocupación', desocup > 0 ? desocup.toFixed(1) + '%' : null],
+                ['Sin agua', sinAgua > 0 ? sinAgua.toFixed(1) + '%' : null],
+                ['Sin luz', sinLuz > 0 ? sinLuz.toFixed(1) + '%' : null],
+                ['Sin internet', sinInternet > 0 ? sinInternet.toFixed(1) + '%' : null],
+                ['Sin servicio sanitario', sinServSan > 0 ? sinServSan.toFixed(1) + '%' : null],
+                ['Con discapacidad', conDisc > 0 ? conDisc.toLocaleString() : null]
             ];
             detalles.forEach(([key, value]) => {
-                if (value !== 'N/D') {
+                if (value !== null) {
                     html += `<div class="stat-row">
                         <span class="key">${key}</span>
                         <span class="value">${value}</span>
@@ -886,7 +1086,50 @@
         }
 
         // ================================================================
-        // 7. EXPORTAR
+        // 8. FUNCIÓN DE TEST PARA DIAGNÓSTICO
+        // ================================================================
+        function testGeometrias() {
+            debugLog('🔍 Ejecutando test de geometrías...', 'info');
+            
+            const tipos = ['provincias', 'distritos', 'corregimientos', 'lugares', 'barrios'];
+            let totalValidas = 0;
+            let totalInvalidas = 0;
+            
+            tipos.forEach(tipo => {
+                const data = geoData[tipo];
+                if (!data) {
+                    debugLog(`❌ ${tipo}: No cargado`, 'error');
+                    return;
+                }
+                
+                let validas = 0;
+                let invalidas = 0;
+                data.features.forEach(f => {
+                    if (f.geometry && f.geometry.type && f.geometry.coordinates) {
+                        validas++;
+                    } else {
+                        invalidas++;
+                    }
+                });
+                totalValidas += validas;
+                totalInvalidas += invalidas;
+                debugLog(`${tipo}: ${validas} válidas, ${invalidas} inválidas`, validas > 0 ? 'success' : 'error');
+            });
+            
+            debugLog(`📊 Total: ${totalValidas} geometrías válidas, ${totalInvalidas} inválidas`, totalValidas > 0 ? 'success' : 'error');
+            
+            // Intentar mostrar una provincia de prueba si hay geometrías válidas
+            if (geoData.provincias) {
+                const validas = geoData.provincias.features.filter(f => f.geometry && f.geometry.type);
+                if (validas.length > 0) {
+                    debugLog(`✅ Mostrando primera provincia como prueba`, 'success');
+                    mostrarPoligono(validas[0]);
+                }
+            }
+        }
+
+        // ================================================================
+        // 9. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!currentLayerGeo) {
@@ -906,6 +1149,7 @@
             link.download = `${nombre.toLowerCase().replace(/\s+/g, '_')}.geojson`;
             link.click();
             URL.revokeObjectURL(link.href);
+            debugLog(`📥 GeoJSON exportado: ${nombre}`, 'success');
         }
 
         function exportarCSV() {
@@ -932,10 +1176,11 @@
             link.download = `datos_seleccionados.csv`;
             link.click();
             URL.revokeObjectURL(link.href);
+            debugLog('📊 CSV exportado', 'success');
         }
 
         // ================================================================
-        // 8. MAPA BASE
+        // 10. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -944,10 +1189,11 @@
             if (layers[tipo]) layers[tipo].addTo(map);
             document.querySelectorAll('.btn-map').forEach(b => b.classList.remove('active'));
             document.getElementById(`btn-${tipo}`).classList.add('active');
+            debugLog(`Mapa cambiado a: ${tipo}`, 'info');
         }
 
         // ================================================================
-        // 9. RESET
+        // 11. RESET
         // ================================================================
         function resetearMapa() {
             document.getElementById('provincia-select').selectedIndex = 0;
@@ -961,10 +1207,14 @@
             document.getElementById('lugar-select').disabled = true;
             document.getElementById('barrio-select').disabled = true;
 
-            if (currentLayerGeo) map.removeLayer(currentLayerGeo);
-            if (highlightLayer) map.removeLayer(highlightLayer);
-            currentLayerGeo = null;
-            highlightLayer = null;
+            if (currentLayerGeo) {
+                map.removeLayer(currentLayerGeo);
+                currentLayerGeo = null;
+            }
+            if (highlightLayer) {
+                map.removeLayer(highlightLayer);
+                highlightLayer = null;
+            }
             currentSelected = { provincia: null, distrito: null, corregimiento: null, lugar: null, barrio: null };
             limpiarInfo();
 
@@ -975,10 +1225,11 @@
             } else {
                 map.setView([8.5, -80.0], 7);
             }
+            debugLog('🔄 Mapa reseteado', 'info');
         }
 
         // ================================================================
-        // 10. INICIO
+        // 12. INICIO
         // ================================================================
         // Exponer funciones globales
         window.cambiarMapa = cambiarMapa;
@@ -990,6 +1241,7 @@
         window.exportarGeoJSON = exportarGeoJSON;
         window.exportarCSV = exportarCSV;
         window.resetearMapa = resetearMapa;
+        window.testGeometrias = testGeometrias;
 
         console.log('🗺️ Explorador Administrativo de Panamá');
         console.log('📌 Cargando datos...');
