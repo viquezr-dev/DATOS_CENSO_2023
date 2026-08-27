@@ -211,7 +211,7 @@
             transition: width 0.3s;
         }
 
-        .debug-console {
+        .debug-panel {
             position: absolute;
             bottom: 40px;
             left: 10px;
@@ -241,7 +241,7 @@
             .info-panel .stat-grid { grid-template-columns: 1fr 1fr; }
             .info-panel .stat-item .num { font-size: 10px; }
             .loading { min-width: 180px; padding: 15px 20px; }
-            .debug-console { max-width: 180px; font-size: 8px; }
+            .debug-panel { max-width: 180px; font-size: 8px; }
         }
     </style>
 </head>
@@ -258,8 +258,8 @@
         <div id="loading-status"></div>
     </div>
 
-    <!-- Debug Console -->
-    <div class="debug-console" id="debugConsole"></div>
+    <!-- Debug Panel -->
+    <div class="debug-panel" id="debugPanel"></div>
 
     <div class="control-panel">
         <h3>🗺️ Panamá - División Administrativa</h3>
@@ -322,18 +322,20 @@
     
     <script>
         // ================================================================
-        // 1. DEBUG
+        // 1. DEBUG - SIN SOBRESCRIBIR console
         // ================================================================
         function debugLog(msg, type = 'info') {
-            const console = document.getElementById('debugConsole');
-            console.style.display = 'block';
-            const colors = { info: '#0f0', warn: '#ff0', error: '#f00', success: '#0f0' };
+            const panel = document.getElementById('debugPanel');
+            panel.style.display = 'block';
+            const colors = { info: '#0f0', warn: '#ff0', error: '#f44', success: '#0f0' };
             const prefix = { info: 'ℹ️', warn: '⚠️', error: '❌', success: '✅' };
-            console.innerHTML += `<div style="color:${colors[type] || '#0f0'}">
-                ${prefix[type] || 'ℹ️'} ${new Date().toLocaleTimeString()}: ${msg}
+            const time = new Date().toLocaleTimeString();
+            panel.innerHTML += `<div style="color:${colors[type] || '#0f0'};border-bottom:1px solid #333;padding:1px 0;">
+                ${prefix[type] || 'ℹ️'} ${time}: ${msg}
             </div>`;
-            console.scrollTop = console.scrollHeight;
-            console.log(msg);
+            panel.scrollTop = panel.scrollHeight;
+            // Usar console.log directamente (sin variable intermedia)
+            console.log(`[${type.toUpperCase()}] ${msg}`);
         }
 
         // ================================================================
