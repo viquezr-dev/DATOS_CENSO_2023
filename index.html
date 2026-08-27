@@ -8,9 +8,6 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; }
@@ -25,7 +22,7 @@
             padding: 12px 14px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            max-width: 280px;
+            max-width: 290px;
             backdrop-filter: blur(4px);
             border: 1px solid rgba(255,255,255,0.3);
             max-height: 95vh;
@@ -34,7 +31,7 @@
             min-width: 220px;
         }
         .control-panel h3 { 
-            font-size: 14px; 
+            font-size: 13px; 
             color: #1a2a3a; 
             border-bottom: 2px solid #2c6b9e; 
             padding-bottom: 6px; 
@@ -48,7 +45,7 @@
             font-size: 10px; 
             color: #2c3e50; 
             display: block; 
-            margin-top: 6px; 
+            margin-top: 5px; 
             margin-bottom: 2px; 
         }
         .control-panel select { 
@@ -59,11 +56,17 @@
             background: white; 
             font-size: 10px; 
             cursor: pointer; 
+            margin-bottom: 2px;
         }
         .control-panel select:focus { 
             outline: none; 
             border-color: #2c6b9e; 
             box-shadow: 0 0 0 2px rgba(44,107,158,0.2); 
+        }
+        .control-panel select:disabled {
+            background: #e9ecef;
+            cursor: not-allowed;
+            opacity: 0.6;
         }
         .control-panel select option { font-size: 10px; }
 
@@ -75,7 +78,7 @@
         }
         .btn-group button { 
             flex: 1; 
-            min-width: 40px;
+            min-width: 35px;
             padding: 4px 6px; 
             border-radius: 5px; 
             border: none; 
@@ -102,7 +105,7 @@
             border-left: 3px solid #2c6b9e;
             font-size: 10px;
             line-height: 1.5;
-            max-height: 200px;
+            max-height: 280px;
             overflow-y: auto;
         }
         .info-panel h4 { 
@@ -145,22 +148,6 @@
         .info-panel .stat-row .key { color: #555; }
         .info-panel .stat-row .value { font-weight: 600; color: #1a2a3a; }
 
-        .hierarchy-selectors {
-            background: #f0f2f5;
-            padding: 5px 7px;
-            border-radius: 5px;
-            margin-top: 4px;
-        }
-        .hierarchy-selectors select {
-            margin-bottom: 3px;
-            font-size: 9px;
-            padding: 3px 5px;
-        }
-        .hierarchy-selectors label {
-            font-size: 9px;
-            margin-top: 3px;
-        }
-
         .footer { 
             position: absolute; 
             bottom: 6px; 
@@ -183,46 +170,57 @@
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 2000;
-            background: rgba(255,255,255,0.9);
-            padding: 20px 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.95);
+            padding: 25px 35px;
+            border-radius: 12px;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.3);
             text-align: center;
+            min-width: 250px;
         }
         .loading .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #2c6b9e;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 35px;
+            height: 35px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            margin: 0 auto 12px;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        .badge-count {
+        .loading .title { font-weight: 600; font-size: 14px; color: #1a2a3a; }
+        .loading .subtitle { font-size: 11px; color: #666; margin-top: 4px; }
+        .loading .error { color: #dc3545; font-size: 11px; margin-top: 8px; }
+        .loading .success { color: #28a745; font-size: 11px; margin-top: 8px; }
+        .loading .progress { 
+            width: 100%; 
+            height: 4px; 
+            background: #e9ecef; 
+            border-radius: 2px; 
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .loading .progress-bar {
+            height: 100%;
             background: #2c6b9e;
-            color: white;
-            border-radius: 10px;
-            padding: 0 6px;
-            font-size: 8px;
-            margin-left: 4px;
+            width: 0%;
+            transition: width 0.3s;
         }
 
         @media (max-width: 600px) {
             .control-panel { 
                 top: 6px; 
                 right: 6px; 
-                max-width: 200px; 
+                max-width: 195px; 
                 padding: 6px 8px; 
                 font-size: 9px;
             }
             .control-panel h3 { font-size: 11px; }
             .info-panel .stat-grid { grid-template-columns: 1fr 1fr; }
             .info-panel .stat-item .num { font-size: 10px; }
+            .loading { min-width: 180px; padding: 15px 20px; }
         }
     </style>
 </head>
@@ -233,7 +231,10 @@
     <!-- Loading -->
     <div class="loading" id="loading">
         <div class="spinner"></div>
-        <div>Cargando datos...</div>
+        <div class="title" id="loading-title">Cargando datos...</div>
+        <div class="subtitle" id="loading-subtitle">Provincias, Distritos, Corregimientos...</div>
+        <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+        <div id="loading-status"></div>
     </div>
 
     <div class="control-panel">
@@ -246,7 +247,7 @@
             <button class="btn-map" onclick="cambiarMapa('topo')" id="btn-topo">🗺️</button>
         </div>
 
-        <div class="hierarchy-selectors">
+        <div style="margin-top:6px;">
             <label>📍 Provincia:</label>
             <select id="provincia-select" onchange="cargarDistritos()">
                 <option value="">Seleccionar provincia...</option>
@@ -282,8 +283,8 @@
         <div class="info-panel" id="info-panel">
             <h4>📊 Información del área seleccionada</h4>
             <div id="info-content">
-                <p style="color:#888;font-style:italic;text-align:center;font-size:9px;">
-                    Selecciona una provincia para ver los datos
+                <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
+                    Selecciona una provincia para ver los datos del censo
                 </p>
             </div>
         </div>
@@ -317,7 +318,6 @@
             })
         };
 
-        let currentLayer = 'satellite';
         layers.satellite.addTo(map);
 
         // ================================================================
@@ -331,8 +331,8 @@
             barrios: null
         };
 
-        let currentFeatures = null;
         let currentLayerGeo = null;
+        let highlightLayer = null;
         let currentSelected = {
             provincia: null,
             distrito: null,
@@ -341,34 +341,56 @@
             barrio: null
         };
 
-        let allFeatures = [];
-        let highlightLayer = null;
-
-        const colors = [
+        const colores = [
             '#2c6b9e', '#28a745', '#dc3545', '#fd7e14', '#6f42c1',
             '#20c997', '#e83e8c', '#17a2b8', '#ffc107', '#6c757d'
         ];
 
+        let datosCargados = 0;
+        const totalArchivos = 5;
+
         // ================================================================
         // 3. FUNCIONES DE CARGA
         // ================================================================
+        function actualizarProgress() {
+            const pct = Math.round((datosCargados / totalArchivos) * 100);
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('loading-subtitle').textContent = 
+                `Cargando ${datosCargados}/${totalArchivos} archivos...`;
+        }
+
         async function cargarGeoJSON(tipo, url) {
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
                 const data = await response.json();
+                
+                if (!data || !data.features) {
+                    throw new Error('Formato inválido: no tiene "features"');
+                }
+                
                 geoData[tipo] = data;
-                console.log(`✅ ${tipo} cargados:`, data.features.length, 'registros');
+                datosCargados++;
+                actualizarProgress();
+                console.log(`✅ ${tipo} cargado: ${data.features.length} registros`);
                 return data;
             } catch (error) {
-                console.warn(`⚠️ No se pudo cargar ${tipo}:`, error.message);
+                console.warn(`⚠️ Error cargando ${tipo}: ${error.message}`);
+                datosCargados++;
+                actualizarProgress();
                 return null;
             }
         }
 
         async function cargarTodosLosDatos() {
-            document.getElementById('loading').style.display = 'block';
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+            document.getElementById('loading-title').textContent = 'Cargando datos...';
+            document.getElementById('loading-status').innerHTML = '';
+            document.getElementById('progress-bar').style.width = '0%';
 
+            // Cargar todos los archivos
             await Promise.all([
                 cargarGeoJSON('provincias', 'provincias.geojson'),
                 cargarGeoJSON('distritos', 'distritos.geojson'),
@@ -377,40 +399,191 @@
                 cargarGeoJSON('barrios', 'barrios.geojson')
             ]);
 
+            // Verificar si se cargaron las provincias
+            if (!geoData.provincias) {
+                document.getElementById('loading-title').textContent = '❌ Error crítico';
+                document.getElementById('loading-subtitle').textContent = 'No se pudo cargar provincias.geojson';
+                document.getElementById('loading-status').innerHTML = `
+                    <div class="error">
+                        Verifica que el archivo <strong>provincias.geojson</strong><br>
+                        esté en la misma carpeta que este HTML
+                    </div>
+                    <button onclick="location.reload()" style="margin-top:10px;padding:6px 20px;border:none;background:#2c6b9e;color:white;border-radius:5px;cursor:pointer;font-size:12px;">
+                        🔄 Reintentar
+                    </button>
+                `;
+                return;
+            }
+
             // Poblar select de provincias
-            if (geoData.provincias) {
-                const select = document.getElementById('provincia-select');
-                const features = geoData.provincias.features.sort((a, b) => 
-                    (a.properties.PROV_NOMB || '').localeCompare(b.properties.PROV_NOMB || '')
-                );
-                features.forEach(f => {
-                    const nombre = f.properties.PROV_NOMB || f.properties.NOMBRE || 'Sin nombre';
-                    const id = f.properties.PROV_ID || f.properties.ID || '';
-                    const option = document.createElement('option');
-                    option.value = id || nombre;
-                    option.textContent = nombre;
-                    option.dataset.feature = JSON.stringify(f);
-                    select.appendChild(option);
-                });
-                // Guardar features para referencia
-                select.features = features;
-            }
-
-            document.getElementById('loading').style.display = 'none';
-            mostrarProvincia(0);
-        }
-
-        // ================================================================
-        // 4. FUNCIONES DE SELECCIÓN
-        // ================================================================
-        function mostrarProvincia(index) {
             const select = document.getElementById('provincia-select');
-            if (index < select.options.length) {
-                select.selectedIndex = index;
-                cargarDistritos();
-            }
+            select.innerHTML = '<option value="">Seleccionar provincia...</option>';
+            
+            const features = geoData.provincias.features;
+            features.sort((a, b) => {
+                const nomA = a.properties.PROV_NOMB || '';
+                const nomB = b.properties.PROV_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            features.forEach((f, index) => {
+                const nombre = f.properties.PROV_NOMB || 'Provincia ' + (index + 1);
+                const id = f.properties.PROV_ID || index;
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                select.appendChild(option);
+            });
+
+            // Mostrar todas las provincias en el mapa
+            mostrarTodasLasProvincias();
+
+            // Finalizar
+            document.getElementById('loading-title').textContent = '✅ ¡Listo!';
+            document.getElementById('loading-subtitle').textContent = `${features.length} provincias cargadas`;
+            document.getElementById('loading-status').innerHTML = `
+                <div class="success">
+                    ${geoData.distritos ? geoData.distritos.features.length + ' distritos' : ''}
+                    ${geoData.corregimientos ? ' · ' + geoData.corregimientos.features.length + ' corregimientos' : ''}
+                </div>
+            `;
+
+            setTimeout(() => {
+                loading.style.display = 'none';
+            }, 800);
         }
 
+        // ================================================================
+        // 4. MOSTRAR EN MAPA
+        // ================================================================
+        function mostrarTodasLasProvincias() {
+            if (!geoData.provincias) return;
+            
+            if (currentLayerGeo) map.removeLayer(currentLayerGeo);
+
+            const features = geoData.provincias.features;
+            
+            currentLayerGeo = L.geoJSON({
+                type: 'FeatureCollection',
+                features: features
+            }, {
+                style: function(feature, index) {
+                    const idx = index % colores.length;
+                    return {
+                        fillColor: colores[idx],
+                        fillOpacity: 0.2,
+                        color: colores[idx],
+                        weight: 1.5,
+                        opacity: 0.6
+                    };
+                },
+                onEachFeature: function(f, layer) {
+                    const props = f.properties;
+                    const nombre = props.PROV_NOMB || 'Provincia';
+                    layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
+                    layer.on('click', function() {
+                        const select = document.getElementById('provincia-select');
+                        for (let i = 0; i < select.options.length; i++) {
+                            if (select.options[i].textContent === nombre) {
+                                select.selectedIndex = i;
+                                cargarDistritos();
+                                break;
+                            }
+                        }
+                    });
+                }
+            }).addTo(map);
+
+            const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
+        }
+
+        function mostrarPoligono(feature) {
+            if (!feature) return;
+            if (currentLayerGeo) map.removeLayer(currentLayerGeo);
+            if (highlightLayer) map.removeLayer(highlightLayer);
+
+            currentLayerGeo = L.geoJSON(feature, {
+                style: {
+                    fillColor: '#2c6b9e',
+                    fillOpacity: 0.25,
+                    color: '#1a4a7a',
+                    weight: 2.5,
+                    opacity: 0.8
+                },
+                onEachFeature: function(f, layer) {
+                    const props = f.properties;
+                    const nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
+                                  props.LUPO_NOMB || props.BARR_NOMB || 'Área';
+                    layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
+                }
+            }).addTo(map);
+
+            highlightLayer = L.geoJSON(feature, {
+                style: {
+                    fillColor: 'transparent',
+                    color: '#2c6b9e',
+                    weight: 4,
+                    opacity: 0.6,
+                    dashArray: '5, 5'
+                }
+            }).addTo(map);
+
+            zoomAFeature(feature);
+        }
+
+        function mostrarTodosLosPoligonos(features, titulo) {
+            if (!features || features.length === 0) {
+                if (currentLayerGeo) map.removeLayer(currentLayerGeo);
+                return;
+            }
+            
+            if (currentLayerGeo) map.removeLayer(currentLayerGeo);
+            if (highlightLayer) map.removeLayer(highlightLayer);
+
+            currentLayerGeo = L.geoJSON({
+                type: 'FeatureCollection',
+                features: features
+            }, {
+                style: function(feature, index) {
+                    const idx = index % colores.length;
+                    return {
+                        fillColor: colores[idx],
+                        fillOpacity: 0.15,
+                        color: colores[idx],
+                        weight: 1.2,
+                        opacity: 0.5
+                    };
+                },
+                onEachFeature: function(f, layer) {
+                    const props = f.properties;
+                    const nombre = props.DIST_NOMB || props.CORR_NOMB || props.LUPO_NOMB || 
+                                  props.BARR_NOMB || 'Área';
+                    layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
+                    layer.on('click', function() {
+                        mostrarInfo(props, titulo);
+                        zoomAFeature(f);
+                    });
+                }
+            }).addTo(map);
+
+            const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+        }
+
+        function zoomAFeature(feature) {
+            try {
+                const bounds = L.geoJSON(feature).getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+                }
+            } catch (e) {}
+        }
+
+        // ================================================================
+        // 5. SELECCIONES ENCadenadas
+        // ================================================================
         function cargarDistritos() {
             const provSelect = document.getElementById('provincia-select');
             const distSelect = document.getElementById('distrito-select');
@@ -418,7 +591,6 @@
             const lugarSelect = document.getElementById('lugar-select');
             const barrioSelect = document.getElementById('barrio-select');
 
-            // Resetear selects hijos
             distSelect.innerHTML = '<option value="">Seleccionar distrito...</option>';
             corrSelect.innerHTML = '<option value="">Seleccionar corregimiento...</option>';
             lugarSelect.innerHTML = '<option value="">Seleccionar lugar poblado...</option>';
@@ -430,35 +602,32 @@
 
             const provId = provSelect.value;
             if (!provId || !geoData.distritos) {
+                mostrarTodasLasProvincias();
                 limpiarInfo();
                 return;
             }
 
-            // Buscar provincia seleccionada
             const provFeature = provSelect.options[provSelect.selectedIndex]?.dataset?.feature;
             if (provFeature) {
                 currentSelected.provincia = JSON.parse(provFeature);
                 mostrarInfo(currentSelected.provincia.properties, 'Provincia');
-                // Zoom a la provincia
                 zoomAFeature(currentSelected.provincia);
             }
 
-            // Filtrar distritos por provincia
             const distritos = geoData.distritos.features.filter(f => {
-                const prop = f.properties;
-                return prop.PROV_ID === provId || prop.ID_PROV === provId || prop.COD_PROV === provId;
+                const p = f.properties;
+                return p.PROV_ID === provId || p.ID_PROV === provId || p.COD_PROV === provId;
             });
 
             if (distritos.length === 0) {
-                // Si no hay distritos, mostrar la provincia
                 mostrarPoligono(currentSelected.provincia);
                 return;
             }
 
             distritos.sort((a, b) => (a.properties.DIST_NOMB || '').localeCompare(b.properties.DIST_NOMB || ''));
             distritos.forEach(f => {
-                const nombre = f.properties.DIST_NOMB || f.properties.NOMBRE || 'Sin nombre';
-                const id = f.properties.DIST_ID || f.properties.ID || '';
+                const nombre = f.properties.DIST_NOMB || 'Sin nombre';
+                const id = f.properties.DIST_ID || '';
                 const option = document.createElement('option');
                 option.value = id || nombre;
                 option.textContent = nombre;
@@ -467,13 +636,10 @@
             });
 
             distSelect.disabled = false;
-            // Seleccionar el primer distrito
             if (distritos.length > 0) {
                 distSelect.selectedIndex = 1;
                 cargarCorregimientos();
             }
-
-            // Mostrar todos los distritos de la provincia
             mostrarTodosLosPoligonos(distritos, 'Distritos');
         }
 
@@ -491,9 +657,7 @@
             barrioSelect.disabled = true;
 
             const distId = distSelect.value;
-            if (!distId || !geoData.corregimientos) {
-                return;
-            }
+            if (!distId || !geoData.corregimientos) return;
 
             const distFeature = distSelect.options[distSelect.selectedIndex]?.dataset?.feature;
             if (distFeature) {
@@ -502,22 +666,20 @@
                 zoomAFeature(currentSelected.distrito);
             }
 
-            // Filtrar corregimientos por distrito
             const corregimientos = geoData.corregimientos.features.filter(f => {
-                const prop = f.properties;
-                return prop.DIST_ID === distId || prop.ID_DIST === distId || prop.COD_DIST === distId;
+                const p = f.properties;
+                return p.DIST_ID === distId || p.ID_DIST === distId || p.COD_DIST === distId;
             });
 
             if (corregimientos.length === 0) {
-                // Mostrar el distrito
                 mostrarPoligono(currentSelected.distrito);
                 return;
             }
 
             corregimientos.sort((a, b) => (a.properties.CORR_NOMB || '').localeCompare(b.properties.CORR_NOMB || ''));
             corregimientos.forEach(f => {
-                const nombre = f.properties.CORR_NOMB || f.properties.NOMBRE || 'Sin nombre';
-                const id = f.properties.CORR_ID || f.properties.ID || '';
+                const nombre = f.properties.CORR_NOMB || 'Sin nombre';
+                const id = f.properties.CORR_ID || '';
                 const option = document.createElement('option');
                 option.value = id || nombre;
                 option.textContent = nombre;
@@ -530,7 +692,6 @@
                 corrSelect.selectedIndex = 1;
                 cargarLugares();
             }
-
             mostrarTodosLosPoligonos(corregimientos, 'Corregimientos');
         }
 
@@ -545,9 +706,7 @@
             barrioSelect.disabled = true;
 
             const corrId = corrSelect.value;
-            if (!corrId || !geoData.lugares) {
-                return;
-            }
+            if (!corrId || !geoData.lugares) return;
 
             const corrFeature = corrSelect.options[corrSelect.selectedIndex]?.dataset?.feature;
             if (corrFeature) {
@@ -557,8 +716,8 @@
             }
 
             const lugares = geoData.lugares.features.filter(f => {
-                const prop = f.properties;
-                return prop.CORR_ID === corrId || prop.ID_CORR === corrId || prop.COD_CORR === corrId;
+                const p = f.properties;
+                return p.CORR_ID === corrId || p.ID_CORR === corrId || p.COD_CORR === corrId;
             });
 
             if (lugares.length === 0) {
@@ -568,8 +727,8 @@
 
             lugares.sort((a, b) => (a.properties.LUPO_NOMB || '').localeCompare(b.properties.LUPO_NOMB || ''));
             lugares.forEach(f => {
-                const nombre = f.properties.LUPO_NOMB || f.properties.NOMBRE || 'Sin nombre';
-                const id = f.properties.LUPO_ID || f.properties.ID || '';
+                const nombre = f.properties.LUPO_NOMB || 'Sin nombre';
+                const id = f.properties.LUPO_ID || '';
                 const option = document.createElement('option');
                 option.value = id || nombre;
                 option.textContent = nombre;
@@ -582,7 +741,6 @@
                 lugarSelect.selectedIndex = 1;
                 cargarBarrios();
             }
-
             mostrarTodosLosPoligonos(lugares, 'Lugares Poblados');
         }
 
@@ -594,9 +752,7 @@
             barrioSelect.disabled = true;
 
             const lugarId = lugarSelect.value;
-            if (!lugarId || !geoData.barrios) {
-                return;
-            }
+            if (!lugarId || !geoData.barrios) return;
 
             const lugarFeature = lugarSelect.options[lugarSelect.selectedIndex]?.dataset?.feature;
             if (lugarFeature) {
@@ -606,8 +762,8 @@
             }
 
             const barrios = geoData.barrios.features.filter(f => {
-                const prop = f.properties;
-                return prop.LUPO_ID === lugarId || prop.ID_LUPO === lugarId || prop.COD_LUPO === lugarId;
+                const p = f.properties;
+                return p.LUPO_ID === lugarId || p.ID_LUPO === lugarId || p.COD_LUPO === lugarId;
             });
 
             if (barrios.length === 0) {
@@ -617,8 +773,8 @@
 
             barrios.sort((a, b) => (a.properties.BARR_NOMB || '').localeCompare(b.properties.BARR_NOMB || ''));
             barrios.forEach(f => {
-                const nombre = f.properties.BARR_NOMB || f.properties.NOMBRE || 'Sin nombre';
-                const id = f.properties.BARR_ID || f.properties.ID || '';
+                const nombre = f.properties.BARR_NOMB || 'Sin nombre';
+                const id = f.properties.BARR_ID || '';
                 const option = document.createElement('option');
                 option.value = id || nombre;
                 option.textContent = nombre;
@@ -631,7 +787,6 @@
                 barrioSelect.selectedIndex = 1;
                 seleccionarBarrio();
             }
-
             mostrarTodosLosPoligonos(barrios, 'Barrios');
         }
 
@@ -650,166 +805,72 @@
         }
 
         // ================================================================
-        // 5. VISUALIZACIÓN EN MAPA
-        // ================================================================
-        function mostrarPoligono(feature) {
-            if (!feature) return;
-
-            if (currentLayerGeo) {
-                map.removeLayer(currentLayerGeo);
-            }
-
-            currentLayerGeo = L.geoJSON(feature, {
-                style: {
-                    fillColor: '#2c6b9e',
-                    fillOpacity: 0.3,
-                    color: '#1a4a7a',
-                    weight: 2.5,
-                    opacity: 0.8
-                },
-                onEachFeature: function(f, layer) {
-                    const props = f.properties;
-                    const nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
-                                  props.LUPO_NOMB || props.BARR_NOMB || 'Área';
-                    layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
-                    layer.on('click', function() {
-                        mostrarInfo(props, 'Área');
-                    });
-                }
-            }).addTo(map);
-
-            // Añadir borde resaltado
-            if (highlightLayer) {
-                map.removeLayer(highlightLayer);
-            }
-            highlightLayer = L.geoJSON(feature, {
-                style: {
-                    fillColor: 'transparent',
-                    color: '#2c6b9e',
-                    weight: 4,
-                    opacity: 0.6,
-                    dashArray: '5, 5'
-                }
-            }).addTo(map);
-
-            zoomAFeature(feature);
-        }
-
-        function mostrarTodosLosPoligonos(features, titulo) {
-            if (!features || features.length === 0) return;
-
-            if (currentLayerGeo) {
-                map.removeLayer(currentLayerGeo);
-            }
-
-            const colorIndex = Object.keys(geoData).indexOf(titulo.toLowerCase()) % colors.length;
-
-            currentLayerGeo = L.geoJSON({
-                type: 'FeatureCollection',
-                features: features
-            }, {
-                style: function(feature, index) {
-                    const idx = index % colors.length;
-                    return {
-                        fillColor: colors[idx % colors.length],
-                        fillOpacity: 0.15,
-                        color: colors[idx % colors.length],
-                        weight: 1.5,
-                        opacity: 0.5
-                    };
-                },
-                onEachFeature: function(f, layer) {
-                    const props = f.properties;
-                    const nombre = props.DIST_NOMB || props.CORR_NOMB || props.LUPO_NOMB || 
-                                  props.BARR_NOMB || props.PROV_NOMB || 'Área';
-                    layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
-                    layer.on('click', function() {
-                        mostrarInfo(props, titulo);
-                        zoomAFeature(f);
-                    });
-                }
-            }).addTo(map);
-
-            const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
-        }
-
-        function zoomAFeature(feature) {
-            if (!feature) return;
-            try {
-                const bounds = L.geoJSON(feature).getBounds();
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
-                }
-            } catch (e) {
-                console.warn('No se pudo hacer zoom:', e);
-            }
-        }
-
-        // ================================================================
         // 6. PANEL DE INFORMACIÓN
         // ================================================================
         function mostrarInfo(props, titulo) {
             const container = document.getElementById('info-content');
 
-            // Extraer datos relevantes
-            const datos = {
-                'Nombre': props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
-                          props.LUPO_NOMB || props.BARR_NOMB || 'Sin nombre',
-                'ID': props.PROV_ID || props.DIST_ID || props.CORR_ID || 
-                      props.LUPO_ID || props.BARR_ID || 'N/A',
-                'Población': props.N_PERSONAS ? Number(props.N_PERSONAS).toLocaleString() : 'N/D',
-                'Hombres': props.P_HOMBRES ? Number(props.P_HOMBRES).toLocaleString() : 'N/D',
-                'Mujeres': props.P_MUJERES ? Number(props.P_MUJERES).toLocaleString() : 'N/D',
-                'Viviendas': props.N_VIVIENDA ? Number(props.N_VIVIENDA).toLocaleString() : 'N/D',
-                'Área (km²)': props.AREA ? Number(props.AREA).toFixed(2) : 'N/D',
-                'Analfabetismo': props.ANALFAB ? `${Number(props.ANALFAB).toFixed(1)}%` : 'N/D',
-                'Desocupación': props.DESOCUP ? `${Number(props.DESOCUP).toFixed(1)}%` : 'N/D',
-                'Sin agua': props.SIN_AGUA ? `${Number(props.SIN_AGUA).toFixed(1)}%` : 'N/D',
-                'Sin luz': props.SIN_LUZ ? `${Number(props.SIN_LUZ).toFixed(1)}%` : 'N/D',
-                'Sin internet': props.SIN_INTERN ? `${Number(props.SIN_INTERN).toFixed(1)}%` : 'N/D'
-            };
+            const nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
+                           props.LUPO_NOMB || props.BARR_NOMB || 'Sin nombre';
+            const id = props.PROV_ID || props.DIST_ID || props.CORR_ID || 
+                       props.LUPO_ID || props.BARR_ID || 'N/A';
+            
+            const poblacion = Number(props.N_PERSONAS) || 0;
+            const viviendas = Number(props.N_VIVIENDA) || 0;
+            const area = Number(props.AREA) || 0;
+            const hombres = Number(props.P_HOMBRES) || 0;
+            const mujeres = Number(props.P_MUJERES) || 0;
+            const analf = Number(props.ANALFAB) || 0;
+            const desocup = Number(props.DESOCUP) || 0;
+            const sinAgua = Number(props.SIN_AGUA) || 0;
+            const sinLuz = Number(props.SIN_LUZ) || 0;
+            const sinInternet = Number(props.SIN_INTERN) || 0;
+            const conDisc = Number(props.CON_DISC) || 0;
 
-            // Calcular indicadores derivados
-            const poblacion = props.N_PERSONAS || 0;
-            const viviendas = props.N_VIVIENDA || 1;
-            const area = props.AREA || 1;
+            let html = `<h4>${titulo}: ${nombre}</h4>`;
 
-            let html = `<h4>${titulo}: ${datos.Nombre}</h4>`;
-
-            // Estadísticas principales en grid
+            // Grid de estadísticas principales
             html += `<div class="stat-grid">
                 <div class="stat-item">
-                    <span class="num">${datos.Población}</span>
+                    <span class="num">${poblacion.toLocaleString()}</span>
                     <span class="label">Población</span>
                 </div>
                 <div class="stat-item">
-                    <span class="num">${datos.Viviendas}</span>
+                    <span class="num">${viviendas.toLocaleString()}</span>
                     <span class="label">Viviendas</span>
                 </div>
                 <div class="stat-item">
-                    <span class="num">${(poblacion / viviendas).toFixed(2)}</span>
+                    <span class="num">${viviendas > 0 ? (poblacion / viviendas).toFixed(2) : 'N/D'}</span>
                     <span class="label">Pers./Viv.</span>
                 </div>
             </div>`;
 
             // Detalles
             html += `<div style="margin-top:4px;">`;
-            const items = ['Hombres', 'Mujeres', 'Área (km²)', 'Analfabetismo', 'Desocupación', 'Sin agua', 'Sin luz', 'Sin internet'];
-            items.forEach(key => {
-                if (datos[key] !== 'N/D') {
+            const detalles = [
+                ['Hombres', hombres.toLocaleString()],
+                ['Mujeres', mujeres.toLocaleString()],
+                ['Área (km²)', area > 0 ? area.toFixed(2) : 'N/D'],
+                ['Analfabetismo', analf > 0 ? analf.toFixed(1) + '%' : 'N/D'],
+                ['Desocupación', desocup > 0 ? desocup.toFixed(1) + '%' : 'N/D'],
+                ['Sin agua', sinAgua > 0 ? sinAgua.toFixed(1) + '%' : 'N/D'],
+                ['Sin luz', sinLuz > 0 ? sinLuz.toFixed(1) + '%' : 'N/D'],
+                ['Sin internet', sinInternet > 0 ? sinInternet.toFixed(1) + '%' : 'N/D'],
+                ['Con discapacidad', conDisc > 0 ? conDisc.toLocaleString() : 'N/D']
+            ];
+            detalles.forEach(([key, value]) => {
+                if (value !== 'N/D') {
                     html += `<div class="stat-row">
                         <span class="key">${key}</span>
-                        <span class="value">${datos[key]}</span>
+                        <span class="value">${value}</span>
                     </div>`;
                 }
             });
             html += `</div>`;
 
-            // ID
-            if (datos.ID !== 'N/A') {
+            if (id !== 'N/A') {
                 html += `<div style="margin-top:3px;font-size:8px;color:#888;border-top:1px dashed #ddd;padding-top:3px;">
-                    ID: ${datos.ID}
+                    ID: ${id}
                 </div>`;
             }
 
@@ -818,36 +879,14 @@
 
         function limpiarInfo() {
             document.getElementById('info-content').innerHTML = `
-                <p style="color:#888;font-style:italic;text-align:center;font-size:9px;">
-                    Selecciona una provincia para ver los datos
+                <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
+                    Selecciona una provincia para ver los datos del censo
                 </p>
             `;
         }
 
         // ================================================================
-        // 7. CAMBIAR MAPA BASE
-        // ================================================================
-        function cambiarMapa(tipo) {
-            // Remover capa actual
-            Object.keys(layers).forEach(key => {
-                if (map.hasLayer(layers[key])) {
-                    map.removeLayer(layers[key]);
-                }
-            });
-
-            // Activar nueva
-            if (layers[tipo]) {
-                layers[tipo].addTo(map);
-                currentLayer = tipo;
-            }
-
-            // Actualizar botones
-            document.querySelectorAll('.btn-map').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`btn-${tipo}`).classList.add('active');
-        }
-
-        // ================================================================
-        // 8. EXPORTAR
+        // 7. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!currentLayerGeo) {
@@ -855,7 +894,6 @@
                 return;
             }
 
-            // Obtener los datos del layer actual
             const data = currentLayerGeo.toGeoJSON();
             const nombre = currentSelected.provincia?.properties?.PROV_NOMB || 
                           currentSelected.distrito?.properties?.DIST_NOMB ||
@@ -882,7 +920,6 @@
                 return;
             }
 
-            // Crear CSV con los datos
             const headers = Object.keys(props);
             const values = headers.map(h => props[h] !== undefined ? props[h] : '');
             
@@ -897,8 +934,22 @@
             URL.revokeObjectURL(link.href);
         }
 
+        // ================================================================
+        // 8. MAPA BASE
+        // ================================================================
+        function cambiarMapa(tipo) {
+            Object.keys(layers).forEach(key => {
+                if (map.hasLayer(layers[key])) map.removeLayer(layers[key]);
+            });
+            if (layers[tipo]) layers[tipo].addTo(map);
+            document.querySelectorAll('.btn-map').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${tipo}`).classList.add('active');
+        }
+
+        // ================================================================
+        // 9. RESET
+        // ================================================================
         function resetearMapa() {
-            // Resetear selects
             document.getElementById('provincia-select').selectedIndex = 0;
             document.getElementById('distrito-select').innerHTML = '<option value="">Seleccionar distrito...</option>';
             document.getElementById('corregimiento-select').innerHTML = '<option value="">Seleccionar corregimiento...</option>';
@@ -910,33 +961,25 @@
             document.getElementById('lugar-select').disabled = true;
             document.getElementById('barrio-select').disabled = true;
 
-            if (currentLayerGeo) {
-                map.removeLayer(currentLayerGeo);
-                currentLayerGeo = null;
-            }
-            if (highlightLayer) {
-                map.removeLayer(highlightLayer);
-                highlightLayer = null;
-            }
-
+            if (currentLayerGeo) map.removeLayer(currentLayerGeo);
+            if (highlightLayer) map.removeLayer(highlightLayer);
+            currentLayerGeo = null;
+            highlightLayer = null;
             currentSelected = { provincia: null, distrito: null, corregimiento: null, lugar: null, barrio: null };
             limpiarInfo();
 
-            // Zoom a todo Panamá
             if (geoData.provincias) {
                 const bounds = L.geoJSON(geoData.provincias).getBounds();
                 if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
+                mostrarTodasLasProvincias();
             } else {
                 map.setView([8.5, -80.0], 7);
             }
         }
 
         // ================================================================
-        // 9. INICIO
+        // 10. INICIO
         // ================================================================
-        console.log('🗺️ Explorador Administrativo de Panamá');
-        console.log('📌 Cargando datos...');
-
         // Exponer funciones globales
         window.cambiarMapa = cambiarMapa;
         window.cargarDistritos = cargarDistritos;
@@ -948,7 +991,9 @@
         window.exportarCSV = exportarCSV;
         window.resetearMapa = resetearMapa;
 
-        // Cargar datos
+        console.log('🗺️ Explorador Administrativo de Panamá');
+        console.log('📌 Cargando datos...');
+
         cargarTodosLosDatos();
     </script>
 
