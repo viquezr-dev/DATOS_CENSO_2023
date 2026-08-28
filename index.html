@@ -11,6 +11,9 @@
     <!-- Turf.js para centroides -->
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     
+    <!-- Chart.js para gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; }
@@ -162,13 +165,16 @@
             align-items: center;
             gap: 6px;
         }
-        .info-panel h4 .nivel-tag {
-            font-size: 8px;
-            background: #2c6b9e;
-            color: white;
-            padding: 1px 8px;
-            border-radius: 10px;
-            font-weight: 400;
+        .info-panel .chart-container {
+            margin-top: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+        .info-panel .chart-container canvas {
+            max-height: 180px;
+            max-width: 100%;
         }
         .info-panel table {
             width: 100%;
@@ -295,6 +301,7 @@
             .info-panel table .campo { width: 50%; }
             .info-panel table .valor { width: 50%; }
             .footer { font-size: 7px; padding: 2px 10px; }
+            .info-panel .chart-container canvas { max-height: 120px; }
         }
     </style>
 </head>
@@ -420,6 +427,7 @@
         let capaEtiquetas = null;
         let nivelActual = 'provincias';
         let historial = ['provincias'];
+        let chartInstance = null;
 
         let seleccion = {
             provincia: null,
@@ -452,8 +460,8 @@
             'LEY_MOD_P': 'Ley Modificatoria Provincia',
             'GACETA_P': 'Gaceta Oficial Provincia',
             'GACE_MOD_P': 'Gaceta Modificatoria Provincia',
-            'PERIMETRO': 'Perímetro (m)',
-            'AREA': 'Área (m²)',
+            'PERIMETRO': 'Perímetro (km)',
+            'AREA': 'Área (km²)',
             'N_PERSONAS': 'Total de Personas',
             'P_HOMBRES': 'Cantidad de Hombres',
             'P_MUJERES': 'Cantidad de Mujeres',
@@ -756,6 +764,10 @@
             wrapperDist.style.display = 'none';
             wrapperCorr.style.display = 'none';
             
+            // Limpiar historial al cambiar de provincia
+            historial = ['provincias'];
+            document.getElementById('btn-back').style.display = 'none';
+            
             if (!value) {
                 mostrarNivel('provincias');
                 document.getElementById('info-content').innerHTML = `
@@ -841,6 +853,7 @@
 
             mostrarNivel('distritos', provId);
             
+            // Auto-seleccionar si solo hay uno
             if (distritos.length === 1) {
                 selectDist.selectedIndex = 1;
                 cambiarDistrito();
@@ -984,38 +997,85 @@
         }
 
         // ================================================================
-        // 12. VOLVER NIVEL ANTERIOR
+        // 12. VOLVER NIVEL JERÁRQUICO
         // ================================================================
         function volverNivel() {
-            if (historial.length <= 1) return;
-            
-            historial.pop();
-            const nivelAnterior = historial[historial.length - 1];
-            
-            if (nivelAnterior === 'provincias') {
-                document.getElementById('selector-provincia').selectedIndex = 0;
-                cambiarProvincia();
-            } else if (nivelAnterior === 'distritos') {
-                if (seleccion.provincia) {
-                    const provId = seleccion.provincia.PROV_ID;
-                    mostrarNivel('distritos', provId);
-                    cargarDistritos(provId);
-                }
-            } else if (nivelAnterior === 'corregimientos') {
+            // Si estamos en corregimiento, ir a distrito
+            if (nivelActual === 'corregimientos') {
+                // Limpiar selector de corregimiento
+                const selectCorr = document.getElementById('selector-corregimiento');
+                selectCorr.selectedIndex = 0;
+                selectCorr.disabled = true;
+                document.getElementById('wrapper-corregimiento').style.display = 'none';
+                
+                // Volver a mostrar distritos
                 if (seleccion.distrito) {
+                    const provId = seleccion.distrito.PROV_ID;
+                    mostrarNivel('distritos', provId);
+                    // Mantener el selector de distrito
+                    const selectDist = document.getElementById('selector-distrito');
+                    selectDist.disabled = false;
+                    document.getElementById('wrapper-distrito').style.display = 'block';
+                    // Seleccionar el distrito actual en el selector
                     const distCode = seleccion.distrito.DIST_CODE || 
                                     (seleccion.distrito.PROV_ID + seleccion.distrito.DIST_ID);
                     const distCodeFormateado = formatearCodigo(distCode, 4);
-                    mostrarNivel('corregimientos', distCodeFormateado);
-                    cargarCorregimientos(distCodeFormateado);
+                    for (let i = 0; i < selectDist.options.length; i++) {
+                        if (selectDist.options[i].value === distCodeFormateado) {
+                            selectDist.selectedIndex = i;
+                            break;
+                        }
+                    }
                 }
+                seleccion.corregimiento = null;
+                return;
             }
             
-            console.log(`Volviendo a nivel: ${nivelAnterior}`);
+            // Si estamos en distrito, ir a provincia
+            if (nivelActual === 'distritos') {
+                // Limpiar selector de distrito
+                const selectDist = document.getElementById('selector-distrito');
+                selectDist.selectedIndex = 0;
+                selectDist.disabled = true;
+                document.getElementById('wrapper-distrito').style.display = 'none';
+                
+                // Volver a mostrar provincias
+                mostrarNivel('provincias');
+                
+                // Mantener la provincia seleccionada
+                if (seleccion.provincia) {
+                    const selectProv = document.getElementById('selector-provincia');
+                    const provId = seleccion.provincia.PROV_ID;
+                    for (let i = 0; i < selectProv.options.length; i++) {
+                        if (selectProv.options[i].value === provId) {
+                            selectProv.selectedIndex = i;
+                            break;
+                        }
+                    }
+                    // Mostrar datos de la provincia
+                    mostrarDatosTabla(seleccion.provincia, 'Provincia');
+                    // Resaltar provincia
+                    if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
+                    // Buscar el feature de la provincia para resaltar
+                    const provFeature = JSON.parse(selectProv.options[selectProv.selectedIndex].dataset.feature);
+                    capaResaltado = L.geoJSON(provFeature, {
+                        style: {
+                            fillColor: 'transparent',
+                            color: '#ff6b35',
+                            weight: 4,
+                            opacity: 0.9,
+                            dashArray: '6, 4'
+                        }
+                    }).addTo(map);
+                }
+                seleccion.distrito = null;
+                seleccion.corregimiento = null;
+                return;
+            }
         }
 
         // ================================================================
-        // 13. MOSTRAR DATOS EN TABLA CON FORMATO CORRECTO
+        // 13. MOSTRAR DATOS EN TABLA CON GRÁFICA
         // ================================================================
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
@@ -1039,7 +1099,7 @@
                 'PROV_ID', 'PROV_NOMB', 'DIST_ID', 'DIST_NOMB', 'DIST_CODE',
                 'CORR_ID', 'CORR_NOMB', 'CORR_CODE',
                 'PROV_LEY', 'LEY_MOD_P', 'GACETA_P', 'GACE_MOD_P',
-                'AREA', 'PERIMETRO',
+                'PERIMETRO', 'AREA',
                 'N_PERSONAS', 'P_HOMBRES', 'P_MUJERES', 'MAYOR_18',
                 'N_VIVIENDA', 'V_INDIV', 'V_APARTAM', 'V_IMPROV', 'V_CUARTOS', 'V_LOCAL',
                 'TOTA_VIV_P', 'CON_PISO_T',
@@ -1056,6 +1116,8 @@
             html += `<table>`;
 
             let tieneDatos = false;
+            let perimetro = null;
+            let area = null;
 
             camposPrioritarios.forEach(campo => {
                 let valor = props[campo];
@@ -1069,6 +1131,20 @@
                         if (campo === 'DIST_CODE') longitud = 4;
                         if (campo === 'CORR_CODE') longitud = 6;
                         valor = formatearCodigo(valor, longitud);
+                    } else if (campo === 'PERIMETRO') {
+                        // Convertir de metros a kilómetros
+                        const num = parseFloat(valor);
+                        if (!isNaN(num)) {
+                            perimetro = num / 1000;
+                            valor = perimetro.toFixed(2);
+                        }
+                    } else if (campo === 'AREA') {
+                        // Convertir de metros cuadrados a kilómetros cuadrados
+                        const num = parseFloat(valor);
+                        if (!isNaN(num)) {
+                            area = num / 1000000;
+                            valor = area.toFixed(2);
+                        }
                     } else if (typeof valor === 'number' || !isNaN(parseFloat(valor))) {
                         const num = parseFloat(valor);
                         if (Number.isInteger(num)) {
@@ -1086,15 +1162,132 @@
 
             html += `</table>`;
 
+            // Agregar gráfica si hay datos socioeconómicos
+            const indicadores = obtenerIndicadores(props);
+            if (indicadores.length > 0) {
+                html += `<div class="chart-container">`;
+                html += `<canvas id="chart-indicadores"></canvas>`;
+                html += `</div>`;
+                html += `<div style="font-size:8px;color:#888;text-align:center;margin-top:2px;">📊 Indicadores socioeconómicos (%)</div>`;
+            }
+
             if (!tieneDatos) {
                 html = `<div class="sin-datos">No hay datos disponibles para esta área</div>`;
             }
 
             container.innerHTML = html;
+
+            // Crear gráfica después de renderizar el HTML
+            setTimeout(() => {
+                if (indicadores.length > 0) {
+                    crearGrafica(indicadores);
+                }
+            }, 100);
         }
 
         // ================================================================
-        // 14. EXPORTAR
+        // 14. OBTENER INDICADORES SOCIOECONÓMICOS
+        // ================================================================
+        function obtenerIndicadores(props) {
+            const indicadores = [];
+            
+            // Extraer indicadores (todos son porcentajes)
+            const items = [
+                { clave: 'ANALFAB', label: 'Analfabetismo', color: '#dc3545' },
+                { clave: 'DESOCUP', label: 'Desocupación', color: '#fd7e14' },
+                { clave: 'SIN_AGUA', label: 'Sin agua potable', color: '#17a2b8' },
+                { clave: 'SIN_LUZ', label: 'Sin luz eléctrica', color: '#ffc107' },
+                { clave: 'SIN_INTERN', label: 'Sin internet', color: '#6f42c1' },
+                { clave: 'SIN_SER_SA', label: 'Sin servicio sanitario', color: '#28a745' },
+                { clave: 'CON_PISO_T', label: 'Piso de tierra', color: '#8B4513' },
+                { clave: 'COC_LEÑA', label: 'Cocinan con leña', color: '#20c997' }
+            ];
+            
+            items.forEach(item => {
+                let valor = props[item.clave];
+                if (valor !== undefined && valor !== null && valor !== '' && !isNaN(parseFloat(valor))) {
+                    const num = parseFloat(valor);
+                    if (num > 0) {
+                        indicadores.push({
+                            label: item.label,
+                            value: num,
+                            color: item.color
+                        });
+                    }
+                }
+            });
+            
+            return indicadores;
+        }
+
+        // ================================================================
+        // 15. CREAR GRÁFICA
+        // ================================================================
+        function crearGrafica(indicadores) {
+            const canvas = document.getElementById('chart-indicadores');
+            if (!canvas) return;
+            
+            // Destruir gráfica anterior si existe
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Ordenar de mayor a menor
+            indicadores.sort((a, b) => b.value - a.value);
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: indicadores.map(i => i.label),
+                    datasets: [{
+                        data: indicadores.map(i => i.value),
+                        backgroundColor: indicadores.map(i => i.color + '80'), // 50% opacity
+                        borderColor: indicadores.map(i => i.color),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.x.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                font: { size: 8 },
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                font: { size: 8 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ================================================================
+        // 16. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!capaActual) {
@@ -1138,6 +1331,10 @@
                     val = formatearCodigo(val, 4);
                 } else if (h === 'CORR_CODE') {
                     val = formatearCodigo(val, 6);
+                } else if (h === 'PERIMETRO' && !isNaN(parseFloat(val))) {
+                    val = (parseFloat(val) / 1000).toFixed(2);
+                } else if (h === 'AREA' && !isNaN(parseFloat(val))) {
+                    val = (parseFloat(val) / 1000000).toFixed(2);
                 }
                 return val !== undefined ? val : '';
             });
@@ -1154,7 +1351,7 @@
         }
 
         // ================================================================
-        // 15. MAPA BASE
+        // 17. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -1166,7 +1363,7 @@
         }
 
         // ================================================================
-        // 16. RESET
+        // 18. RESET
         // ================================================================
         function resetearMapa() {
             historial = ['provincias'];
@@ -1187,6 +1384,11 @@
             if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
+            
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
 
             mostrarNivel('provincias');
             
@@ -1200,7 +1402,7 @@
         }
 
         // ================================================================
-        // 17. INICIO
+        // 19. INICIO
         // ================================================================
         window.cambiarMapa = cambiarMapa;
         window.cambiarProvincia = cambiarProvincia;
