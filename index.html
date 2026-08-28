@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Provincias de Panamá - Datos del Censo</title>
+    <title>Panamá - División Administrativa</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -40,6 +40,15 @@
             align-items: center;
             gap: 6px;
         }
+        .control-panel .nivel-actual {
+            font-size: 10px;
+            color: #2c6b9e;
+            font-weight: 600;
+            background: #e8f0fe;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 4px;
+        }
         .control-panel label { 
             font-weight: 600; 
             font-size: 10px; 
@@ -62,6 +71,11 @@
             outline: none; 
             border-color: #2c6b9e; 
             box-shadow: 0 0 0 2px rgba(44,107,158,0.2); 
+        }
+        .control-panel select:disabled {
+            background: #e9ecef;
+            cursor: not-allowed;
+            opacity: 0.6;
         }
 
         .btn-group { 
@@ -142,6 +156,14 @@
             padding: 15px 0;
             font-size: 9px;
         }
+        .info-panel .nivel-indicador {
+            font-size: 8px;
+            color: #888;
+            text-align: center;
+            padding: 4px 0;
+            border-top: 1px dashed #ddd;
+            margin-top: 4px;
+        }
 
         .footer { 
             position: absolute; 
@@ -187,23 +209,31 @@
         }
         .loading .title { font-weight: 600; font-size: 14px; color: #1a2a3a; }
         .loading .subtitle { font-size: 11px; color: #666; margin-top: 4px; }
+        .loading .progress { 
+            width: 100%; 
+            height: 4px; 
+            background: #e9ecef; 
+            border-radius: 2px; 
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .loading .progress-bar {
+            height: 100%;
+            background: #2c6b9e;
+            width: 0%;
+            transition: width 0.3s;
+        }
 
-        .debug-panel {
-            position: absolute;
-            bottom: 40px;
-            left: 10px;
-            z-index: 1000;
-            background: rgba(0,0,0,0.85);
-            color: #0f0;
-            padding: 8px 12px;
-            border-radius: 5px;
-            font-family: 'Courier New', monospace;
-            font-size: 9px;
-            max-width: 350px;
-            max-height: 120px;
-            overflow-y: auto;
-            display: none;
-            pointer-events: none;
+        /* Tooltip personalizado para provincias */
+        .leaflet-tooltip.provincia-tooltip {
+            background: rgba(0,0,0,0.75);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         @media (max-width: 600px) {
@@ -216,7 +246,6 @@
             }
             .control-panel h3 { font-size: 11px; }
             .loading { min-width: 180px; padding: 15px 20px; }
-            .debug-panel { max-width: 180px; font-size: 8px; }
             .info-panel table { font-size: 8px; }
             .info-panel table .campo { width: 50%; }
             .info-panel table .valor { width: 50%; }
@@ -232,14 +261,15 @@
         <div class="spinner"></div>
         <div class="title" id="loading-title">Cargando datos...</div>
         <div class="subtitle" id="loading-subtitle">Provincias de Panamá</div>
+        <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
         <div id="loading-status"></div>
     </div>
 
-    <!-- Debug Panel -->
-    <div class="debug-panel" id="debugPanel"></div>
-
     <div class="control-panel">
-        <h3>🗺️ Panamá - Provincias</h3>
+        <h3>
+            🗺️ Panamá 
+            <span class="nivel-actual" id="nivel-actual">Provincias</span>
+        </h3>
 
         <label>🗺️ Mapa base:</label>
         <div class="btn-group">
@@ -249,10 +279,14 @@
         </div>
 
         <div style="margin-top:6px;">
-            <label>📍 Provincia:</label>
-            <select id="provincia-select" onchange="seleccionarProvincia()">
-                <option value="">Seleccionar provincia...</option>
+            <label id="label-selector">📍 Provincia:</label>
+            <select id="selector-principal" onchange="seleccionarItem()">
+                <option value="">Seleccionar...</option>
             </select>
+        </div>
+
+        <div id="sub-selectores">
+            <!-- Se llenan dinámicamente -->
         </div>
 
         <div class="btn-group" style="margin-top:6px;">
@@ -279,23 +313,7 @@
     
     <script>
         // ================================================================
-        // 1. DEBUG
-        // ================================================================
-        function debugLog(msg, type = 'info') {
-            const panel = document.getElementById('debugPanel');
-            panel.style.display = 'block';
-            const colors = { info: '#0f0', warn: '#ff0', error: '#f44', success: '#0f0' };
-            const prefix = { info: 'ℹ️', warn: '⚠️', error: '❌', success: '✅' };
-            const time = new Date().toLocaleTimeString();
-            panel.innerHTML += `<div style="color:${colors[type] || '#0f0'};border-bottom:1px solid #333;padding:1px 0;">
-                ${prefix[type] || 'ℹ️'} ${time}: ${msg}
-            </div>`;
-            panel.scrollTop = panel.scrollHeight;
-            console.log(`[${type.toUpperCase()}] ${msg}`);
-        }
-
-        // ================================================================
-        // 2. MAPA
+        // 1. MAPA
         // ================================================================
         const map = L.map('map', { center: [8.5, -80.0], zoom: 7 });
 
@@ -319,22 +337,31 @@
         layers.satellite.addTo(map);
 
         // ================================================================
-        // 3. VARIABLES GLOBALES
+        // 2. VARIABLES GLOBALES
         // ================================================================
-        let geoData = { provincias: null };
-        let currentLayerGeo = null;
-        let highlightLayer = null;
-        let currentSelected = null;
-        let provinciaFeatures = [];
+        let datos = {
+            provincias: null,
+            distritos: null,
+            corregimientos: null
+        };
+
+        let capaActual = null;
+        let capaResaltado = null;
+        let seleccionActual = null;
+        let nivelActual = 'provincias'; // provincias | distritos | corregimientos
+        let itemSeleccionado = null;
 
         const colores = [
             '#2c6b9e', '#28a745', '#dc3545', '#fd7e14', '#6f42c1',
             '#20c997', '#e83e8c', '#17a2b8', '#ffc107', '#6c757d',
-            '#d63384', '#0dcaf0', '#198754'
+            '#d63384', '#0dcaf0', '#198754', '#ff6b35', '#7b2fbe'
         ];
 
+        let datosCargados = 0;
+        const totalArchivos = 3;
+
         // ================================================================
-        // 4. DICCIONARIO DE CAMPOS
+        // 3. DICCIONARIO DE CAMPOS
         // ================================================================
         const descripcionCampos = {
             'PROV_ID': 'Código de Provincia',
@@ -388,228 +415,390 @@
         };
 
         // ================================================================
-        // 5. CARGA DE DATOS
+        // 4. CARGA DE DATOS
         // ================================================================
-        async function cargarProvincias() {
+        function actualizarProgress() {
+            const pct = Math.round((datosCargados / totalArchivos) * 100);
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('loading-subtitle').textContent = 
+                `Cargando ${datosCargados}/${totalArchivos} archivos...`;
+        }
+
+        async function cargarGeoJSON(tipo, url) {
             try {
-                debugLog('Cargando provincias desde provincias.geojson...', 'info');
-                const response = await fetch('provincias.geojson');
+                const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                
                 const data = await response.json();
-                
-                if (!data || !data.features) {
-                    throw new Error('Formato inválido: no tiene "features"');
-                }
-                
-                geoData.provincias = data;
-                provinciaFeatures = data.features;
-                
-                // Poblar select
-                const select = document.getElementById('provincia-select');
-                select.innerHTML = '<option value="">Seleccionar provincia...</option>';
-                
-                provinciaFeatures.sort((a, b) => {
-                    const nomA = a.properties.PROV_NOMB || '';
-                    const nomB = b.properties.PROV_NOMB || '';
-                    return nomA.localeCompare(nomB);
-                });
-                
-                provinciaFeatures.forEach((f, index) => {
-                    const nombre = f.properties.PROV_NOMB || 'Provincia ' + (index + 1);
-                    const id = f.properties.PROV_ID || index;
-                    const option = document.createElement('option');
-                    option.value = id;
-                    option.textContent = nombre;
-                    option.dataset.feature = JSON.stringify(f);
-                    select.appendChild(option);
-                });
-
-                debugLog(`✅ ${provinciaFeatures.length} provincias cargadas`, 'success');
-
-                // Mostrar en el mapa
-                mostrarTodasLasProvincias();
-
-                // Mostrar mensaje en el panel
-                document.getElementById('info-content').innerHTML = `
-                    <div class="sin-datos">
-                        🗺️ Haz clic en una provincia en el mapa<br>
-                        o selecciónala en el menú para ver los datos
-                    </div>
-                `;
-
-                // Ocultar loading
-                document.getElementById('loading').style.display = 'none';
-                
+                datos[tipo] = data;
+                datosCargados++;
+                actualizarProgress();
+                console.log(`✅ ${tipo} cargado: ${data.features.length} registros`);
+                return data;
             } catch (error) {
-                debugLog(`Error: ${error.message}`, 'error');
+                console.warn(`⚠️ Error cargando ${tipo}: ${error.message}`);
+                datosCargados++;
+                actualizarProgress();
+                return null;
+            }
+        }
+
+        async function cargarTodosLosDatos() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('progress-bar').style.width = '0%';
+
+            await Promise.all([
+                cargarGeoJSON('provincias', 'provincias.geojson'),
+                cargarGeoJSON('distritos', 'distritos.geojson'),
+                cargarGeoJSON('corregimientos', 'corregimientos.geojson')
+            ]);
+
+            if (!datos.provincias) {
                 document.getElementById('loading').innerHTML = `
                     <div class="title" style="color:#dc3545;">❌ Error</div>
-                    <div class="subtitle">${error.message}</div>
-                    <div style="margin-top:10px;font-size:11px;color:#666;">
-                        Verifica que <strong>provincias.geojson</strong><br>
-                        esté en la misma carpeta
-                    </div>
+                    <div class="subtitle">No se pudo cargar provincias.geojson</div>
                     <button onclick="location.reload()" style="margin-top:10px;padding:6px 20px;border:none;background:#2c6b9e;color:white;border-radius:5px;cursor:pointer;font-size:12px;">
                         🔄 Reintentar
                     </button>
                 `;
+                return;
             }
+
+            // Poblar selector de provincias
+            const select = document.getElementById('selector-principal');
+            select.innerHTML = '<option value="">Seleccionar provincia...</option>';
+            
+            const features = datos.provincias.features;
+            features.sort((a, b) => {
+                const nomA = a.properties.PROV_NOMB || '';
+                const nomB = b.properties.PROV_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            features.forEach((f, index) => {
+                const nombre = f.properties.PROV_NOMB || 'Provincia ' + (index + 1);
+                const id = f.properties.PROV_ID || index;
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                option.dataset.tipo = 'provincia';
+                select.appendChild(option);
+            });
+
+            // Mostrar provincias en el mapa
+            mostrarNivel('provincias');
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('nivel-actual').textContent = 'Provincias';
         }
 
         // ================================================================
-        // 6. MOSTRAR EN MAPA
+        // 5. MOSTRAR EN MAPA
         // ================================================================
-        function mostrarTodasLasProvincias() {
-            if (!geoData.provincias) return;
-            
-            if (currentLayerGeo) {
-                map.removeLayer(currentLayerGeo);
-                currentLayerGeo = null;
+        function mostrarNivel(nivel, filtroId = null) {
+            if (capaActual) {
+                map.removeLayer(capaActual);
+                capaActual = null;
+            }
+            if (capaResaltado) {
+                map.removeLayer(capaResaltado);
+                capaResaltado = null;
             }
 
-            const features = geoData.provincias.features;
-            
-            try {
-                currentLayerGeo = L.geoJSON({
-                    type: 'FeatureCollection',
-                    features: features
-                }, {
-                    style: function(feature, index) {
-                        const idx = index % colores.length;
-                        return {
-                            fillColor: colores[idx],
-                            fillOpacity: 0.35,
-                            color: colores[idx],
-                            weight: 2,
-                            opacity: 0.8
-                        };
-                    },
-                    onEachFeature: function(f, layer) {
-                        const props = f.properties;
-                        const nombre = props.PROV_NOMB || 'Provincia';
-                        
-                        // Tooltip al pasar el mouse
-                        layer.bindTooltip(nombre, { 
-                            permanent: false, 
-                            direction: 'center',
-                            className: 'provincia-tooltip'
-                        });
-                        
-                        // Al hacer clic, seleccionar la provincia
-                        layer.on('click', function() {
-                            const select = document.getElementById('provincia-select');
+            let features = [];
+            let titulo = '';
+
+            if (nivel === 'provincias') {
+                features = datos.provincias?.features || [];
+                titulo = 'Provincias';
+                nivelActual = 'provincias';
+                document.getElementById('nivel-actual').textContent = 'Provincias';
+                document.getElementById('label-selector').textContent = '📍 Provincia:';
+            } else if (nivel === 'distritos') {
+                if (!datos.distritos) {
+                    console.warn('No hay datos de distritos');
+                    return;
+                }
+                features = datos.distritos.features.filter(f => {
+                    const p = f.properties;
+                    return p.PROV_ID === filtroId || p.ID_PROV === filtroId || p.COD_PROV === filtroId;
+                });
+                titulo = 'Distritos';
+                nivelActual = 'distritos';
+                document.getElementById('nivel-actual').textContent = 'Distritos';
+                document.getElementById('label-selector').textContent = '📍 Distrito:';
+            } else if (nivel === 'corregimientos') {
+                if (!datos.corregimientos) {
+                    console.warn('No hay datos de corregimientos');
+                    return;
+                }
+                features = datos.corregimientos.features.filter(f => {
+                    const p = f.properties;
+                    return p.DIST_ID === filtroId || p.ID_DIST === filtroId || p.COD_DIST === filtroId;
+                });
+                titulo = 'Corregimientos';
+                nivelActual = 'corregimientos';
+                document.getElementById('nivel-actual').textContent = 'Corregimientos';
+                document.getElementById('label-selector').textContent = '📍 Corregimiento:';
+            }
+
+            if (features.length === 0) {
+                console.warn(`No hay ${titulo} para mostrar`);
+                return;
+            }
+
+            // Filtrar features con geometría válida
+            const validas = features.filter(f => f.geometry && f.geometry.type);
+            if (validas.length === 0) {
+                console.warn(`Ningún ${titulo} tiene geometría válida`);
+                return;
+            }
+
+            capaActual = L.geoJSON({
+                type: 'FeatureCollection',
+                features: validas
+            }, {
+                style: function(feature, index) {
+                    const idx = index % colores.length;
+                    return {
+                        fillColor: colores[idx],
+                        fillOpacity: 0.3,
+                        color: '#ffffff',
+                        weight: 1.5,
+                        opacity: 0.6
+                    };
+                },
+                onEachFeature: function(f, layer) {
+                    const props = f.properties;
+                    let nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 'Área';
+                    
+                    // Tooltip con nombre
+                    layer.bindTooltip(nombre, { 
+                        permanent: false, 
+                        direction: 'center',
+                        className: 'provincia-tooltip'
+                    });
+                    
+                    // Al hacer clic
+                    layer.on('click', function() {
+                        if (nivel === 'provincias') {
+                            // Seleccionar provincia y cargar distritos
+                            const select = document.getElementById('selector-principal');
                             for (let i = 0; i < select.options.length; i++) {
                                 if (select.options[i].textContent === nombre) {
                                     select.selectedIndex = i;
-                                    seleccionarProvincia();
+                                    seleccionarItem();
                                     break;
                                 }
                             }
-                        });
-                    }
-                }).addTo(map);
-
-                // Ajustar zoom a todas las provincias
-                const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [20, 20] });
-                    debugLog('📍 Zoom ajustado a todas las provincias', 'info');
+                        } else if (nivel === 'distritos') {
+                            // Seleccionar distrito y cargar corregimientos
+                            cargarSubNivel('distritos', props);
+                        } else if (nivel === 'corregimientos') {
+                            // Mostrar datos del corregimiento
+                            mostrarDatosTabla(props, 'Corregimiento');
+                            resaltarFeature(f);
+                        }
+                    });
                 }
-                
-                debugLog(`✅ ${features.length} provincias mostradas en el mapa`, 'success');
-            } catch (error) {
-                debugLog(`Error al mostrar: ${error.message}`, 'error');
+            }).addTo(map);
+
+            // Ajustar zoom
+            const bounds = L.geoJSON({ type: 'FeatureCollection', features: validas }).getBounds();
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [30, 30] });
             }
+
+            console.log(`✅ ${validas.length} ${titulo} mostrados`);
         }
 
-        function mostrarProvincia(feature) {
-            if (!feature) return;
+        function resaltarFeature(feature) {
+            if (capaResaltado) {
+                map.removeLayer(capaResaltado);
+                capaResaltado = null;
+            }
             
-            if (currentLayerGeo) {
-                map.removeLayer(currentLayerGeo);
-                currentLayerGeo = null;
-            }
-            if (highlightLayer) {
-                map.removeLayer(highlightLayer);
-                highlightLayer = null;
-            }
-
-            try {
-                // Mostrar la provincia seleccionada con color destacado
-                currentLayerGeo = L.geoJSON(feature, {
-                    style: {
-                        fillColor: '#2c6b9e',
-                        fillOpacity: 0.35,
-                        color: '#1a4a7a',
-                        weight: 3,
-                        opacity: 0.9
-                    },
-                    onEachFeature: function(f, layer) {
-                        const props = f.properties;
-                        const nombre = props.PROV_NOMB || 'Provincia';
-                        layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
-                    }
-                }).addTo(map);
-
-                // Borde resaltado
-                highlightLayer = L.geoJSON(feature, {
-                    style: {
-                        fillColor: 'transparent',
-                        color: '#ff6b35',
-                        weight: 4,
-                        opacity: 0.8,
-                        dashArray: '6, 4'
-                    }
-                }).addTo(map);
-
-                // Hacer zoom a la provincia
-                const bounds = L.geoJSON(feature).getBounds();
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+            capaResaltado = L.geoJSON(feature, {
+                style: {
+                    fillColor: 'transparent',
+                    color: '#ff6b35',
+                    weight: 4,
+                    opacity: 0.9,
+                    dashArray: '6, 4'
                 }
-            } catch (error) {
-                debugLog(`Error al mostrar provincia: ${error.message}`, 'error');
-            }
+            }).addTo(map);
         }
 
         // ================================================================
-        // 7. SELECCIÓN DE PROVINCIA
+        // 6. SELECCIÓN JERÁRQUICA
         // ================================================================
-        function seleccionarProvincia() {
-            const select = document.getElementById('provincia-select');
-            const provId = select.value;
+        function seleccionarItem() {
+            const select = document.getElementById('selector-principal');
+            const value = select.value;
             
-            if (!provId) {
-                mostrarTodasLasProvincias();
+            if (!value) {
+                mostrarNivel('provincias');
                 document.getElementById('info-content').innerHTML = `
                     <div class="sin-datos">
                         🗺️ Haz clic en una provincia en el mapa<br>
                         o selecciónala en el menú para ver los datos
                     </div>
                 `;
+                document.getElementById('sub-selectores').innerHTML = '';
                 return;
             }
 
-            const provFeature = select.options[select.selectedIndex]?.dataset?.feature;
-            if (provFeature) {
-                currentSelected = JSON.parse(provFeature);
-                mostrarDatosTabla(currentSelected.properties);
-                mostrarProvincia(currentSelected);
+            const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
+            const tipo = select.options[select.selectedIndex].dataset.tipo || 'provincia';
+            const props = feature.properties;
+            
+            if (tipo === 'provincia') {
+                // Mostrar datos de la provincia
+                mostrarDatosTabla(props, 'Provincia');
+                resaltarFeature(feature);
+                
+                // Cargar distritos
+                if (datos.distritos) {
+                    cargarSubNivel('provincias', props);
+                }
             }
         }
 
+        function cargarSubNivel(nivel, props) {
+            const container = document.getElementById('sub-selectores');
+            
+            if (nivel === 'provincias') {
+                // Cargar distritos de la provincia seleccionada
+                const provId = props.PROV_ID;
+                const distritos = datos.distritos.features.filter(f => {
+                    const p = f.properties;
+                    return p.PROV_ID === provId || p.ID_PROV === provId || p.COD_PROV === provId;
+                });
+
+                if (distritos.length === 0) {
+                    container.innerHTML = `<div style="font-size:9px;color:#888;padding:4px 0;">No hay distritos disponibles</div>`;
+                    return;
+                }
+
+                let html = `<label style="margin-top:4px;">📍 Distrito:</label>
+                    <select id="selector-distrito" onchange="seleccionarDistrito()">
+                        <option value="">Seleccionar distrito...</option>`;
+                
+                distritos.sort((a, b) => {
+                    const nomA = a.properties.DIST_NOMB || '';
+                    const nomB = b.properties.DIST_NOMB || '';
+                    return nomA.localeCompare(nomB);
+                });
+                
+                distritos.forEach(f => {
+                    const nombre = f.properties.DIST_NOMB || 'Sin nombre';
+                    const id = f.properties.DIST_ID || '';
+                    html += `<option value="${id}" data-feature='${JSON.stringify(f)}'>${nombre}</option>`;
+                });
+                
+                html += `</select>`;
+                container.innerHTML = html;
+
+                // Mostrar distritos en el mapa
+                mostrarNivel('distritos', provId);
+                
+            } else if (nivel === 'distritos') {
+                // Cargar corregimientos del distrito seleccionado
+                const distId = props.DIST_ID;
+                const corregimientos = datos.corregimientos.features.filter(f => {
+                    const p = f.properties;
+                    return p.DIST_ID === distId || p.ID_DIST === distId || p.COD_DIST === distId;
+                });
+
+                if (corregimientos.length === 0) {
+                    container.innerHTML = `<div style="font-size:9px;color:#888;padding:4px 0;">No hay corregimientos disponibles</div>`;
+                    return;
+                }
+
+                let html = `<label style="margin-top:4px;">📍 Corregimiento:</label>
+                    <select id="selector-corregimiento" onchange="seleccionarCorregimiento()">
+                        <option value="">Seleccionar corregimiento...</option>`;
+                
+                corregimientos.sort((a, b) => {
+                    const nomA = a.properties.CORR_NOMB || '';
+                    const nomB = b.properties.CORR_NOMB || '';
+                    return nomA.localeCompare(nomB);
+                });
+                
+                corregimientos.forEach(f => {
+                    const nombre = f.properties.CORR_NOMB || 'Sin nombre';
+                    const id = f.properties.CORR_ID || '';
+                    html += `<option value="${id}" data-feature='${JSON.stringify(f)}'>${nombre}</option>`;
+                });
+                
+                html += `</select>`;
+                container.innerHTML = html;
+
+                // Mostrar corregimientos en el mapa
+                mostrarNivel('corregimientos', distId);
+            }
+        }
+
+        function seleccionarDistrito() {
+            const select = document.getElementById('selector-distrito');
+            if (!select) return;
+            
+            const value = select.value;
+            if (!value) {
+                // Volver a mostrar distritos
+                const provSelect = document.getElementById('selector-principal');
+                const provId = provSelect.value;
+                if (provId) {
+                    mostrarNivel('distritos', provId);
+                }
+                return;
+            }
+
+            const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
+            const props = feature.properties;
+            
+            mostrarDatosTabla(props, 'Distrito');
+            resaltarFeature(feature);
+            
+            // Cargar corregimientos
+            cargarSubNivel('distritos', props);
+        }
+
+        function seleccionarCorregimiento() {
+            const select = document.getElementById('selector-corregimiento');
+            if (!select) return;
+            
+            const value = select.value;
+            if (!value) {
+                // Volver a mostrar corregimientos
+                const distSelect = document.getElementById('selector-distrito');
+                if (distSelect) {
+                    const distId = distSelect.value;
+                    if (distId) {
+                        mostrarNivel('corregimientos', distId);
+                    }
+                }
+                return;
+            }
+
+            const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
+            const props = feature.properties;
+            
+            mostrarDatosTabla(props, 'Corregimiento');
+            resaltarFeature(feature);
+        }
+
         // ================================================================
-        // 8. MOSTRAR DATOS EN TABLA CON NOMBRES DESCRIPTIVOS
+        // 7. MOSTRAR DATOS EN TABLA
         // ================================================================
-        function mostrarDatosTabla(props) {
+        function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
             
-            const nombre = props.PROV_NOMB || 'Sin nombre';
+            const nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 'Sin nombre';
             
-            // Orden de campos (priorizando los más importantes primero)
             const camposPrioritarios = [
-                'PROV_ID', 'PROV_NOMB', 'PROV_LEY', 'LEY_MOD_P', 'GACETA_P', 'GACE_MOD_P',
+                'PROV_ID', 'PROV_NOMB', 'DIST_ID', 'DIST_NOMB', 'CORR_ID', 'CORR_NOMB',
+                'PROV_LEY', 'LEY_MOD_P', 'GACETA_P', 'GACE_MOD_P',
                 'AREA', 'PERIMETRO',
                 'N_PERSONAS', 'P_HOMBRES', 'P_MUJERES', 'MAYOR_18',
                 'N_VIVIENDA', 'V_INDIV', 'V_APARTAM', 'V_IMPROV', 'V_CUARTOS', 'V_LOCAL',
@@ -624,7 +813,7 @@
                 'ID1'
             ];
 
-            let html = `<h4>📋 ${nombre}</h4>`;
+            let html = `<h4>📋 ${titulo}: ${nombre}</h4>`;
             html += `<table>`;
 
             let tieneDatos = false;
@@ -633,10 +822,8 @@
                 let valor = props[campo];
                 if (valor !== undefined && valor !== null && valor !== '') {
                     tieneDatos = true;
-                    // Obtener nombre descriptivo
                     const nombreCampo = descripcionCampos[campo] || campo;
                     
-                    // Formatear números
                     if (typeof valor === 'number' || !isNaN(parseFloat(valor))) {
                         const num = parseFloat(valor);
                         if (Number.isInteger(num)) {
@@ -655,60 +842,65 @@
             html += `</table>`;
 
             if (!tieneDatos) {
-                html = `<div class="sin-datos">No hay datos disponibles para esta provincia</div>`;
+                html = `<div class="sin-datos">No hay datos disponibles para esta área</div>`;
             }
+
+            // Indicar nivel actual
+            html += `<div class="nivel-indicador">📍 Nivel: ${titulo}</div>`;
 
             container.innerHTML = html;
         }
 
         // ================================================================
-        // 9. EXPORTAR
+        // 8. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
-            if (!currentLayerGeo) {
+            if (!capaActual) {
                 alert('No hay ningún polígono seleccionado para exportar.');
                 return;
             }
 
-            const data = currentLayerGeo.toGeoJSON();
-            const nombre = currentSelected?.properties?.PROV_NOMB || 'panama';
+            const data = capaActual.toGeoJSON();
+            const nombre = 'panama_' + nivelActual;
 
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `${nombre.toLowerCase().replace(/\s+/g, '_')}.geojson`;
+            link.download = `${nombre}.geojson`;
             link.click();
             URL.revokeObjectURL(link.href);
-            debugLog(`📥 GeoJSON exportado: ${nombre}`, 'success');
         }
 
         function exportarCSV() {
-            const props = currentSelected?.properties;
+            // Buscar las propiedades del item seleccionado
+            let props = null;
+            const select = document.getElementById('selector-principal');
+            if (select && select.value) {
+                const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
+                props = feature.properties;
+            }
 
             if (!props) {
                 alert('No hay datos para exportar.');
                 return;
             }
 
-            // Usar nombres descriptivos como headers
             const headers = Object.keys(props);
-            const headersDescriptivos = headers.map(h => descripcionCampos[h] || h);
             const values = headers.map(h => props[h] !== undefined ? props[h] : '');
             
-            let csv = headersDescriptivos.join(',') + '\n';
+            let csv = headers.join(',') + '\n';
             csv += values.join(',') + '\n';
 
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `provincia_${props.PROV_NOMB || 'datos'}.csv`;
+            link.download = `datos_${nivelActual}.csv`;
             link.click();
             URL.revokeObjectURL(link.href);
-            debugLog('📊 CSV exportado', 'success');
         }
 
         // ================================================================
-        // 10. MAPA BASE
+        // 9. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -720,51 +912,46 @@
         }
 
         // ================================================================
-        // 11. RESET
+        // 10. RESET
         // ================================================================
         function resetearMapa() {
-            document.getElementById('provincia-select').selectedIndex = 0;
-            currentSelected = null;
+            document.getElementById('selector-principal').selectedIndex = 0;
+            document.getElementById('sub-selectores').innerHTML = '';
             
-            if (currentLayerGeo) {
-                map.removeLayer(currentLayerGeo);
-                currentLayerGeo = null;
+            if (capaActual) {
+                map.removeLayer(capaActual);
+                capaActual = null;
             }
-            if (highlightLayer) {
-                map.removeLayer(highlightLayer);
-                highlightLayer = null;
-            }
-
-            if (geoData.provincias) {
-                const bounds = L.geoJSON(geoData.provincias).getBounds();
-                if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
-                mostrarTodasLasProvincias();
-            } else {
-                map.setView([8.5, -80.0], 7);
+            if (capaResaltado) {
+                map.removeLayer(capaResaltado);
+                capaResaltado = null;
             }
 
+            mostrarNivel('provincias');
+            
             document.getElementById('info-content').innerHTML = `
                 <div class="sin-datos">
                     🗺️ Haz clic en una provincia en el mapa<br>
                     o selecciónala en el menú para ver los datos
                 </div>
             `;
-            debugLog('🔄 Mapa reseteado', 'info');
         }
 
         // ================================================================
-        // 12. INICIO
+        // 11. INICIO
         // ================================================================
         window.cambiarMapa = cambiarMapa;
-        window.seleccionarProvincia = seleccionarProvincia;
+        window.seleccionarItem = seleccionarItem;
+        window.seleccionarDistrito = seleccionarDistrito;
+        window.seleccionarCorregimiento = seleccionarCorregimiento;
         window.exportarGeoJSON = exportarGeoJSON;
         window.exportarCSV = exportarCSV;
         window.resetearMapa = resetearMapa;
 
-        console.log('🗺️ Provincias de Panamá - Datos del Censo');
+        console.log('🗺️ Panamá - División Administrativa');
         console.log('📌 Cargando datos...');
 
-        cargarProvincias();
+        cargarTodosLosDatos();
     </script>
 
 </body>
