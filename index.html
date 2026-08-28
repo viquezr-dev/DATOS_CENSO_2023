@@ -150,7 +150,7 @@
             border-left: 3px solid #2c6b9e;
             font-size: 10px;
             line-height: 1.5;
-            max-height: 420px;
+            max-height: 500px;
             overflow-y: auto;
         }
         .info-panel::-webkit-scrollbar { width: 3px; }
@@ -173,8 +173,15 @@
             border: 1px solid #eee;
         }
         .info-panel .chart-container canvas {
-            max-height: 180px;
+            max-height: 200px;
             max-width: 100%;
+        }
+        .info-panel .chart-title {
+            font-size: 9px;
+            font-weight: 600;
+            color: #2c6b9e;
+            text-align: center;
+            margin-bottom: 4px;
         }
         .info-panel table {
             width: 100%;
@@ -210,6 +217,16 @@
             font-size: 28px;
             display: block;
             margin-bottom: 8px;
+        }
+        .info-panel .indicador-destacado {
+            display: inline-block;
+            background: #2c6b9e;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 8px;
+            font-weight: 600;
+            margin-left: 4px;
         }
 
         .footer { 
@@ -301,7 +318,7 @@
             .info-panel table .campo { width: 50%; }
             .info-panel table .valor { width: 50%; }
             .footer { font-size: 7px; padding: 2px 10px; }
-            .info-panel .chart-container canvas { max-height: 120px; }
+            .info-panel .chart-container canvas { max-height: 150px; }
         }
     </style>
 </head>
@@ -428,6 +445,7 @@
         let nivelActual = 'provincias';
         let historial = ['provincias'];
         let chartInstance = null;
+        let chartIndicadoresInstance = null;
 
         let seleccion = {
             provincia: null,
@@ -440,6 +458,16 @@
             '#20c997', '#e83e8c', '#17a2b8', '#ffc107', '#6c757d',
             '#d63384', '#0dcaf0', '#198754', '#ff6b35', '#7b2fbe'
         ];
+
+        const coloresIndicadores = {
+            'Densidad': '#2c6b9e',
+            'Ocupación': '#28a745',
+            'Desocupación': '#dc3545',
+            'Hombres': '#17a2b8',
+            'Mujeres': '#e83e8c',
+            'Viviendas Ocupadas': '#28a745',
+            'Viviendas Desocupadas': '#dc3545'
+        };
 
         let datosCargados = 0;
         const totalArchivos = 3;
@@ -853,7 +881,6 @@
 
             mostrarNivel('distritos', provId);
             
-            // Auto-seleccionar si solo hay uno
             if (distritos.length === 1) {
                 selectDist.selectedIndex = 1;
                 cambiarDistrito();
@@ -1002,21 +1029,17 @@
         function volverNivel() {
             // Si estamos en corregimiento, ir a distrito
             if (nivelActual === 'corregimientos') {
-                // Limpiar selector de corregimiento
                 const selectCorr = document.getElementById('selector-corregimiento');
                 selectCorr.selectedIndex = 0;
                 selectCorr.disabled = true;
                 document.getElementById('wrapper-corregimiento').style.display = 'none';
                 
-                // Volver a mostrar distritos
                 if (seleccion.distrito) {
                     const provId = seleccion.distrito.PROV_ID;
                     mostrarNivel('distritos', provId);
-                    // Mantener el selector de distrito
                     const selectDist = document.getElementById('selector-distrito');
                     selectDist.disabled = false;
                     document.getElementById('wrapper-distrito').style.display = 'block';
-                    // Seleccionar el distrito actual en el selector
                     const distCode = seleccion.distrito.DIST_CODE || 
                                     (seleccion.distrito.PROV_ID + seleccion.distrito.DIST_ID);
                     const distCodeFormateado = formatearCodigo(distCode, 4);
@@ -1033,16 +1056,13 @@
             
             // Si estamos en distrito, ir a provincia
             if (nivelActual === 'distritos') {
-                // Limpiar selector de distrito
                 const selectDist = document.getElementById('selector-distrito');
                 selectDist.selectedIndex = 0;
                 selectDist.disabled = true;
                 document.getElementById('wrapper-distrito').style.display = 'none';
                 
-                // Volver a mostrar provincias
                 mostrarNivel('provincias');
                 
-                // Mantener la provincia seleccionada
                 if (seleccion.provincia) {
                     const selectProv = document.getElementById('selector-provincia');
                     const provId = seleccion.provincia.PROV_ID;
@@ -1052,11 +1072,8 @@
                             break;
                         }
                     }
-                    // Mostrar datos de la provincia
                     mostrarDatosTabla(seleccion.provincia, 'Provincia');
-                    // Resaltar provincia
                     if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
-                    // Buscar el feature de la provincia para resaltar
                     const provFeature = JSON.parse(selectProv.options[selectProv.selectedIndex].dataset.feature);
                     capaResaltado = L.geoJSON(provFeature, {
                         style: {
@@ -1075,7 +1092,7 @@
         }
 
         // ================================================================
-        // 13. MOSTRAR DATOS EN TABLA CON GRÁFICA
+        // 13. MOSTRAR DATOS EN TABLA CON GRÁFICA SOCIOECONÓMICA
         // ================================================================
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
@@ -1116,8 +1133,6 @@
             html += `<table>`;
 
             let tieneDatos = false;
-            let perimetro = null;
-            let area = null;
 
             camposPrioritarios.forEach(campo => {
                 let valor = props[campo];
@@ -1125,25 +1140,20 @@
                     tieneDatos = true;
                     const nombreCampo = descripcionCampos[campo] || campo;
                     
-                    // Si es un campo de código, formatear con ceros a la izquierda
                     if (camposCodigo.includes(campo)) {
                         let longitud = 2;
                         if (campo === 'DIST_CODE') longitud = 4;
                         if (campo === 'CORR_CODE') longitud = 6;
                         valor = formatearCodigo(valor, longitud);
                     } else if (campo === 'PERIMETRO') {
-                        // Convertir de metros a kilómetros
                         const num = parseFloat(valor);
                         if (!isNaN(num)) {
-                            perimetro = num / 1000;
-                            valor = perimetro.toFixed(2);
+                            valor = (num / 1000).toFixed(2);
                         }
                     } else if (campo === 'AREA') {
-                        // Convertir de metros cuadrados a kilómetros cuadrados
                         const num = parseFloat(valor);
                         if (!isNaN(num)) {
-                            area = num / 1000000;
-                            valor = area.toFixed(2);
+                            valor = (num / 1000000).toFixed(2);
                         }
                     } else if (typeof valor === 'number' || !isNaN(parseFloat(valor))) {
                         const num = parseFloat(valor);
@@ -1162,13 +1172,12 @@
 
             html += `</table>`;
 
-            // Agregar gráfica si hay datos socioeconómicos
-            const indicadores = obtenerIndicadores(props);
-            if (indicadores.length > 0) {
+            // Agregar gráfica socioeconómica
+            if (tieneDatos) {
                 html += `<div class="chart-container">`;
+                html += `<div class="chart-title">📊 Indicadores Socioeconómicos</div>`;
                 html += `<canvas id="chart-indicadores"></canvas>`;
                 html += `</div>`;
-                html += `<div style="font-size:8px;color:#888;text-align:center;margin-top:2px;">📊 Indicadores socioeconómicos (%)</div>`;
             }
 
             if (!tieneDatos) {
@@ -1179,74 +1188,197 @@
 
             // Crear gráfica después de renderizar el HTML
             setTimeout(() => {
-                if (indicadores.length > 0) {
-                    crearGrafica(indicadores);
+                if (tieneDatos) {
+                    crearGraficaSocioeconomica(props, titulo);
                 }
             }, 100);
         }
 
         // ================================================================
-        // 14. OBTENER INDICADORES SOCIOECONÓMICOS
+        // 14. CREAR GRÁFICA SOCIOECONÓMICA
         // ================================================================
-        function obtenerIndicadores(props) {
-            const indicadores = [];
-            
-            // Extraer indicadores (todos son porcentajes)
-            const items = [
-                { clave: 'ANALFAB', label: 'Analfabetismo', color: '#dc3545' },
-                { clave: 'DESOCUP', label: 'Desocupación', color: '#fd7e14' },
-                { clave: 'SIN_AGUA', label: 'Sin agua potable', color: '#17a2b8' },
-                { clave: 'SIN_LUZ', label: 'Sin luz eléctrica', color: '#ffc107' },
-                { clave: 'SIN_INTERN', label: 'Sin internet', color: '#6f42c1' },
-                { clave: 'SIN_SER_SA', label: 'Sin servicio sanitario', color: '#28a745' },
-                { clave: 'CON_PISO_T', label: 'Piso de tierra', color: '#8B4513' },
-                { clave: 'COC_LEÑA', label: 'Cocinan con leña', color: '#20c997' }
-            ];
-            
-            items.forEach(item => {
-                let valor = props[item.clave];
-                if (valor !== undefined && valor !== null && valor !== '' && !isNaN(parseFloat(valor))) {
-                    const num = parseFloat(valor);
-                    if (num > 0) {
-                        indicadores.push({
-                            label: item.label,
-                            value: num,
-                            color: item.color
-                        });
-                    }
-                }
-            });
-            
-            return indicadores;
-        }
-
-        // ================================================================
-        // 15. CREAR GRÁFICA
-        // ================================================================
-        function crearGrafica(indicadores) {
+        function crearGraficaSocioeconomica(props, titulo) {
             const canvas = document.getElementById('chart-indicadores');
             if (!canvas) return;
             
-            // Destruir gráfica anterior si existe
-            if (chartInstance) {
-                chartInstance.destroy();
-                chartInstance = null;
+            if (chartIndicadoresInstance) {
+                chartIndicadoresInstance.destroy();
+                chartIndicadoresInstance = null;
             }
+
+            // Calcular indicadores
+            const poblacion = parseFloat(props.N_PERSONAS) || 0;
+            const viviendas = parseFloat(props.N_VIVIENDA) || 0;
+            const ocupadas = parseFloat(props.TOTA_VIV_P) || 0; // Viviendas con ocupantes presentes
+            const hombres = parseFloat(props.P_HOMBRES) || 0;
+            const mujeres = parseFloat(props.P_MUJERES) || 0;
+            const area = parseFloat(props.AREA) || 1; // en m²
+            const desocupados = parseFloat(props.DESOCUP) || 0;
+            const analfabetas = parseFloat(props.ANALFAB) || 0;
+            const mayores18 = parseFloat(props.MAYOR_18) || 0;
+            const sinAgua = parseFloat(props.SIN_AGUA) || 0;
+            const sinLuz = parseFloat(props.SIN_LUZ) || 0;
+            const sinInternet = parseFloat(props.SIN_INTERN) || 0;
+
+            // Calcular densidad (hab/km²)
+            const areaKm2 = area / 1000000;
+            const densidad = areaKm2 > 0 ? poblacion / areaKm2 : 0;
+
+            // Calcular porcentaje de ocupación
+            const pctOcupacion = viviendas > 0 ? (ocupadas / viviendas) * 100 : 0;
+            const pctDesocupacion = viviendas > 0 ? ((viviendas - ocupadas) / viviendas) * 100 : 0;
+
+            // Calcular porcentaje de hombres/mujeres
+            const pctHombres = poblacion > 0 ? (hombres / poblacion) * 100 : 0;
+            const pctMujeres = poblacion > 0 ? (mujeres / poblacion) * 100 : 0;
+
+            // Calcular porcentaje de mayores de 18
+            const pctMayores18 = poblacion > 0 ? (mayores18 / poblacion) * 100 : 0;
+
+            // Datos para la gráfica
+            const datosGrafica = [];
             
+            // 1. Densidad poblacional (valor absoluto, no porcentaje)
+            if (densidad > 0) {
+                datosGrafica.push({
+                    label: 'Densidad (hab/km²)',
+                    value: Math.round(densidad),
+                    color: '#2c6b9e',
+                    esPorcentaje: false
+                });
+            }
+
+            // 2. Ocupación de viviendas
+            if (pctOcupacion > 0) {
+                datosGrafica.push({
+                    label: 'Viviendas ocupadas',
+                    value: pctOcupacion,
+                    color: '#28a745',
+                    esPorcentaje: true
+                });
+            }
+
+            // 3. Desocupación de viviendas
+            if (pctDesocupacion > 0) {
+                datosGrafica.push({
+                    label: 'Viviendas desocupadas',
+                    value: pctDesocupacion,
+                    color: '#dc3545',
+                    esPorcentaje: true
+                });
+            }
+
+            // 4. Distribución de género
+            if (pctHombres > 0 && pctMujeres > 0) {
+                datosGrafica.push({
+                    label: 'Hombres',
+                    value: pctHombres,
+                    color: '#17a2b8',
+                    esPorcentaje: true
+                });
+                datosGrafica.push({
+                    label: 'Mujeres',
+                    value: pctMujeres,
+                    color: '#e83e8c',
+                    esPorcentaje: true
+                });
+            }
+
+            // 5. Indicadores sociales (porcentajes)
+            if (analfabetas > 0) {
+                datosGrafica.push({
+                    label: 'Analfabetismo',
+                    value: analfabetas,
+                    color: '#fd7e14',
+                    esPorcentaje: true
+                });
+            }
+
+            if (desocupados > 0 && poblacion > 0) {
+                const pctDesocupados = (desocupados / poblacion) * 100;
+                datosGrafica.push({
+                    label: 'Desocupación laboral',
+                    value: pctDesocupados,
+                    color: '#dc3545',
+                    esPorcentaje: true
+                });
+            }
+
+            if (sinAgua > 0) {
+                datosGrafica.push({
+                    label: 'Sin agua potable',
+                    value: sinAgua,
+                    color: '#17a2b8',
+                    esPorcentaje: true
+                });
+            }
+
+            if (sinLuz > 0) {
+                datosGrafica.push({
+                    label: 'Sin luz eléctrica',
+                    value: sinLuz,
+                    color: '#ffc107',
+                    esPorcentaje: true
+                });
+            }
+
+            if (sinInternet > 0) {
+                datosGrafica.push({
+                    label: 'Sin internet',
+                    value: sinInternet,
+                    color: '#6f42c1',
+                    esPorcentaje: true
+                });
+            }
+
+            // Si no hay datos, mostrar mensaje
+            if (datosGrafica.length === 0) {
+                canvas.parentElement.innerHTML = `
+                    <div style="text-align:center;padding:10px;color:#888;font-size:9px;">
+                        No hay suficientes datos para mostrar indicadores
+                    </div>
+                `;
+                return;
+            }
+
             const ctx = canvas.getContext('2d');
             
-            // Ordenar de mayor a menor
-            indicadores.sort((a, b) => b.value - a.value);
-            
-            chartInstance = new Chart(ctx, {
+            // Separar datos en dos grupos: valores absolutos y porcentajes
+            const datosAbsolutos = datosGrafica.filter(d => !d.esPorcentaje);
+            const datosPorcentaje = datosGrafica.filter(d => d.esPorcentaje);
+
+            // Si hay valores absolutos, mostrarlos primero
+            let labels = [];
+            let values = [];
+            let colors = [];
+            let esPorcentaje = [];
+
+            // Primero los valores absolutos (densidad)
+            datosAbsolutos.forEach(d => {
+                labels.push(d.label);
+                values.push(d.value);
+                colors.push(d.color);
+                esPorcentaje.push(false);
+            });
+
+            // Luego los porcentajes
+            datosPorcentaje.forEach(d => {
+                labels.push(d.label);
+                values.push(d.value);
+                colors.push(d.color);
+                esPorcentaje.push(true);
+            });
+
+            chartIndicadoresInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: indicadores.map(i => i.label),
+                    labels: labels,
                     datasets: [{
-                        data: indicadores.map(i => i.value),
-                        backgroundColor: indicadores.map(i => i.color + '80'), // 50% opacity
-                        borderColor: indicadores.map(i => i.color),
-                        borderWidth: 1
+                        data: values,
+                        backgroundColor: colors.map(c => c + '80'),
+                        borderColor: colors,
+                        borderWidth: 1.5,
+                        borderRadius: 4
                     }]
                 },
                 options: {
@@ -1260,7 +1392,14 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return context.parsed.x.toFixed(1) + '%';
+                                    const idx = context.dataIndex;
+                                    const esPct = esPorcentaje[idx];
+                                    const valor = context.parsed.x;
+                                    if (esPct) {
+                                        return valor.toFixed(1) + '%';
+                                    } else {
+                                        return valor.toLocaleString() + ' hab/km²';
+                                    }
                                 }
                             }
                         }
@@ -1268,11 +1407,17 @@
                     scales: {
                         x: {
                             beginAtZero: true,
-                            max: 100,
                             ticks: {
                                 font: { size: 8 },
-                                callback: function(value) {
-                                    return value + '%';
+                                callback: function(value, index, ticks) {
+                                    // Mostrar el valor con formato según el tipo
+                                    const idx = index;
+                                    if (idx !== undefined && idx < esPorcentaje.length) {
+                                        if (esPorcentaje[idx]) {
+                                            return value + '%';
+                                        }
+                                    }
+                                    return value;
                                 }
                             }
                         },
@@ -1287,7 +1432,7 @@
         }
 
         // ================================================================
-        // 16. EXPORTAR
+        // 15. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!capaActual) {
@@ -1351,7 +1496,7 @@
         }
 
         // ================================================================
-        // 17. MAPA BASE
+        // 16. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -1363,7 +1508,7 @@
         }
 
         // ================================================================
-        // 18. RESET
+        // 17. RESET
         // ================================================================
         function resetearMapa() {
             historial = ['provincias'];
@@ -1385,9 +1530,9 @@
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
             
-            if (chartInstance) {
-                chartInstance.destroy();
-                chartInstance = null;
+            if (chartIndicadoresInstance) {
+                chartIndicadoresInstance.destroy();
+                chartIndicadoresInstance = null;
             }
 
             mostrarNivel('provincias');
@@ -1402,7 +1547,7 @@
         }
 
         // ================================================================
-        // 19. INICIO
+        // 18. INICIO
         // ================================================================
         window.cambiarMapa = cambiarMapa;
         window.cambiarProvincia = cambiarProvincia;
