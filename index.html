@@ -283,25 +283,6 @@
             border-top-color: rgba(0,0,0,0.8);
         }
 
-        /* Debug flotante */
-        .debug-console {
-            position: absolute;
-            bottom: 50px;
-            left: 10px;
-            z-index: 1000;
-            background: rgba(0,0,0,0.85);
-            color: #0f0;
-            padding: 8px 12px;
-            border-radius: 5px;
-            font-family: 'Courier New', monospace;
-            font-size: 9px;
-            max-width: 400px;
-            max-height: 200px;
-            overflow-y: auto;
-            display: none;
-            pointer-events: none;
-        }
-
         @media (max-width: 600px) {
             .control-panel { 
                 top: 6px; 
@@ -317,7 +298,6 @@
             .info-panel table .campo { width: 50%; }
             .info-panel table .valor { width: 50%; }
             .footer { font-size: 7px; padding: 2px 10px; }
-            .debug-console { max-width: 180px; font-size: 7px; max-height: 100px; }
         }
     </style>
 </head>
@@ -333,9 +313,6 @@
         <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
         <div id="loading-status"></div>
     </div>
-
-    <!-- Debug Console -->
-    <div class="debug-console" id="debugConsole"></div>
 
     <!-- Panel de Control -->
     <div class="control-panel" id="panel">
@@ -387,19 +364,7 @@
     
     <script>
         // ================================================================
-        // 1. DEBUG
-        // ================================================================
-        function debugLog(msg) {
-            const panel = document.getElementById('debugConsole');
-            panel.style.display = 'block';
-            const time = new Date().toLocaleTimeString();
-            panel.innerHTML += `<div style="border-bottom:1px solid #333;padding:2px 0;font-size:9px;">${time}: ${msg}</div>`;
-            panel.scrollTop = panel.scrollHeight;
-            console.log(msg);
-        }
-
-        // ================================================================
-        // 2. MAPA
+        // 1. MAPA
         // ================================================================
         const map = L.map('map', { center: [8.5, -80.0], zoom: 7 });
 
@@ -423,7 +388,7 @@
         layers.satellite.addTo(map);
 
         // ================================================================
-        // 3. VARIABLES GLOBALES
+        // 2. VARIABLES GLOBALES
         // ================================================================
         const datos = {
             provincias: null,
@@ -449,17 +414,17 @@
         const totalArchivos = 3;
 
         // ================================================================
-        // 4. DICCIONARIO DE CAMPOS
+        // 3. DICCIONARIO DE CAMPOS
         // ================================================================
         const descripcionCampos = {
             'PROV_ID': 'Código de Provincia',
             'PROV_NOMB': 'Nombre de Provincia',
             'DIST_ID': 'Código de Distrito',
             'DIST_NOMB': 'Nombre de Distrito',
-            'DIST_CODE': 'Código Completo Distrito',
+            'DIST_CODE': 'Código Distrito (4 dígitos)',
             'CORR_ID': 'Código de Corregimiento',
             'CORR_NOMB': 'Nombre de Corregimiento',
-            'CORR_CODE': 'Código Completo Corregimiento',
+            'CORR_CODE': 'Código Corregimiento (6 dígitos)',
             'PROV_LEY': 'Ley de Creación Provincia',
             'LEY_MOD_P': 'Ley Modificatoria Provincia',
             'GACETA_P': 'Gaceta Oficial Provincia',
@@ -509,7 +474,7 @@
         };
 
         // ================================================================
-        // 5. CARGA DE DATOS
+        // 4. CARGA DE DATOS
         // ================================================================
         function actualizarProgress() {
             const pct = Math.round((datosCargados / totalArchivos) * 100);
@@ -518,17 +483,17 @@
 
         async function cargarGeoJSON(tipo, url) {
             try {
-                debugLog(`Cargando ${tipo} desde ${url}...`);
+                console.log(`Cargando ${tipo} desde ${url}...`);
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 datos[tipo] = data;
                 datosCargados++;
                 actualizarProgress();
-                debugLog(`✅ ${tipo} cargado: ${data.features.length} registros`);
+                console.log(`✅ ${tipo} cargado: ${data.features.length} registros`);
                 return data;
             } catch (error) {
-                debugLog(`⚠️ Error cargando ${tipo}: ${error.message}`);
+                console.warn(`⚠️ Error cargando ${tipo}: ${error.message}`);
                 datosCargados++;
                 actualizarProgress();
                 return null;
@@ -547,14 +512,14 @@
             ]);
 
             // DIAGNÓSTICO
-            debugLog('=== DIAGNÓSTICO DE ESTRUCTURA ===');
+            console.log('=== DIAGNÓSTICO DE ESTRUCTURA ===');
             if (datos.distritos && datos.distritos.features.length > 0) {
                 const p = datos.distritos.features[0].properties;
-                debugLog(`Distritos - PROV_ID: "${p.PROV_ID}", DIST_ID: "${p.DIST_ID}", DIST_NOMB: "${p.DIST_NOMB}"`);
+                console.log(`Distritos - PROV_ID: "${p.PROV_ID}", DIST_ID: "${p.DIST_ID}", DIST_CODE: "${p.DIST_CODE}", DIST_NOMB: "${p.DIST_NOMB}"`);
             }
             if (datos.corregimientos && datos.corregimientos.features.length > 0) {
                 const p = datos.corregimientos.features[0].properties;
-                debugLog(`Corregimientos - DIST_ID: "${p.DIST_ID}", CORR_ID: "${p.CORR_ID}", CORR_NOMB: "${p.CORR_NOMB}"`);
+                console.log(`Corregimientos - DIST_ID: "${p.DIST_ID}", CORR_ID: "${p.CORR_ID}", CORR_CODE: "${p.CORR_CODE}", CORR_NOMB: "${p.CORR_NOMB}"`);
             }
 
             if (!datos.provincias) {
@@ -597,11 +562,11 @@
 
             loading.style.display = 'none';
             document.getElementById('badge-nivel').textContent = 'Provincias';
-            debugLog('✅ Carga completada');
+            console.log('✅ Carga completada');
         }
 
         // ================================================================
-        // 6. MOSTRAR EN MAPA
+        // 5. MOSTRAR EN MAPA
         // ================================================================
         function mostrarNivel(nivel, filtroId = null) {
             if (historial[historial.length - 1] !== nivel) {
@@ -631,37 +596,40 @@
                 filtroActual = null;
             } else if (nivel === 'distritos') {
                 if (!datos.distritos) { return; }
+                // Filtrar por PROV_ID
                 features = datos.distritos.features.filter(f => {
                     const p = f.properties;
-                    return p.PROV_ID === filtroId || p.ID_PROV === filtroId || p.COD_PROV === filtroId;
+                    return p.PROV_ID === filtroId;
                 });
                 titulo = 'Distritos';
                 nivelActual = 'distritos';
                 document.getElementById('label-selector').textContent = '📍 Distrito:';
                 filtroActual = filtroId;
-                debugLog(`Distritos para provincia ${filtroId}: ${features.length}`);
+                console.log(`Distritos para provincia ${filtroId}: ${features.length}`);
             } else if (nivel === 'corregimientos') {
                 if (!datos.corregimientos) { return; }
+                // Filtrar por DIST_CODE (4 dígitos) o PROV_ID + DIST_ID
                 features = datos.corregimientos.features.filter(f => {
                     const p = f.properties;
-                    // Buscar por DIST_ID (campo principal)
-                    return p.DIST_ID === filtroId || p.ID_DIST === filtroId || p.COD_DIST === filtroId;
+                    // Usar DIST_CODE (4 dígitos) o concatenar PROV_ID + DIST_ID
+                    const distCode = p.DIST_CODE || (p.PROV_ID + p.DIST_ID);
+                    return distCode === filtroId;
                 });
                 titulo = 'Corregimientos';
                 nivelActual = 'corregimientos';
                 document.getElementById('label-selector').textContent = '📍 Corregimiento:';
                 filtroActual = filtroId;
-                debugLog(`Corregimientos para distrito ${filtroId}: ${features.length}`);
+                console.log(`Corregimientos para distrito ${filtroId}: ${features.length}`);
             }
 
             if (features.length === 0) {
-                debugLog(`No hay ${titulo} para mostrar`);
+                console.log(`No hay ${titulo} para mostrar`);
                 return;
             }
 
             const validas = features.filter(f => f.geometry && f.geometry.type);
             if (validas.length === 0) {
-                debugLog(`Ningún ${titulo} tiene geometría válida`);
+                console.log(`Ningún ${titulo} tiene geometría válida`);
                 return;
             }
 
@@ -735,7 +703,7 @@
                 map.fitBounds(bounds, { padding: [30, 30] });
             }
 
-            debugLog(`✅ ${validas.length} ${titulo} mostrados`);
+            console.log(`✅ ${validas.length} ${titulo} mostrados`);
         }
 
         function agregarEtiquetas(features) {
@@ -775,7 +743,7 @@
         }
 
         // ================================================================
-        // 7. SELECTOR PRINCIPAL (Provincias)
+        // 6. SELECTOR PRINCIPAL (Provincias)
         // ================================================================
         function seleccionarItem() {
             const select = document.getElementById('selector-principal');
@@ -820,20 +788,20 @@
         }
 
         // ================================================================
-        // 8. CARGAR DISTRITOS
+        // 7. CARGAR DISTRITOS
         // ================================================================
         function cargarDistritos(props) {
             const container = document.getElementById('sub-selectores-container');
             const provId = props.PROV_ID;
             
-            debugLog(`Buscando distritos para provincia ID: "${provId}"`);
+            console.log(`Buscando distritos para provincia ID: "${provId}"`);
             
             const distritos = datos.distritos.features.filter(f => {
                 const p = f.properties;
-                return p.PROV_ID === provId || p.ID_PROV === provId || p.COD_PROV === provId;
+                return p.PROV_ID === provId;
             });
 
-            debugLog(`Encontrados ${distritos.length} distritos`);
+            console.log(`Encontrados ${distritos.length} distritos`);
 
             if (distritos.length === 0) {
                 container.innerHTML = `<div class="mensaje-vacio">No hay distritos disponibles</div>`;
@@ -852,7 +820,8 @@
             
             distritos.forEach(f => {
                 const nombre = f.properties.DIST_NOMB || 'Sin nombre';
-                const id = f.properties.DIST_ID || f.properties.ID || '';
+                // Usar DIST_CODE (4 dígitos) como valor del selector
+                const id = f.properties.DIST_CODE || (f.properties.PROV_ID + f.properties.DIST_ID);
                 html += `<option value="${id}" data-feature='${JSON.stringify(f)}'>${nombre}</option>`;
             });
             
@@ -864,7 +833,7 @@
         }
 
         // ================================================================
-        // 9. SELECCIONAR DISTRITO
+        // 8. SELECCIONAR DISTRITO
         // ================================================================
         function seleccionarDistrito() {
             const select = document.getElementById('selector-distrito');
@@ -884,7 +853,7 @@
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             
-            debugLog(`Distrito seleccionado: ${props.DIST_NOMB} (ID: ${props.DIST_ID})`);
+            console.log(`Distrito seleccionado: ${props.DIST_NOMB} (DIST_CODE: ${value})`);
             
             mostrarDatosTabla(props, 'Distrito');
             
@@ -899,27 +868,29 @@
                 }
             }).addTo(map);
 
-            // Cargar corregimientos
+            // Cargar corregimientos usando DIST_CODE
             if (datos.corregimientos) {
-                cargarCorregimientos(props);
+                cargarCorregimientos(value);
             }
         }
 
         // ================================================================
-        // 10. CARGAR CORREGIMIENTOS
+        // 9. CARGAR CORREGIMIENTOS (usando DIST_CODE)
         // ================================================================
-        function cargarCorregimientos(props) {
+        function cargarCorregimientos(distCode) {
             const container = document.getElementById('sub-selectores-container');
-            const distId = props.DIST_ID;
             
-            debugLog(`Buscando corregimientos para distrito ID: "${distId}"`);
+            console.log(`Buscando corregimientos para DIST_CODE: "${distCode}"`);
             
             const corregimientos = datos.corregimientos.features.filter(f => {
                 const p = f.properties;
-                return p.DIST_ID === distId || p.ID_DIST === distId || p.COD_DIST === distId;
+                // Usar CORR_CODE (6 dígitos) o concatenar PROV_ID + DIST_ID + CORR_ID
+                const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
+                // El distCode es de 4 dígitos, comparar con los primeros 4 dígitos
+                return corrCode.substring(0, 4) === distCode;
             });
 
-            debugLog(`Encontrados ${corregimientos.length} corregimientos`);
+            console.log(`Encontrados ${corregimientos.length} corregimientos`);
 
             // Mostrar selector de corregimientos
             let html = `<label>📍 Corregimiento:</label>
@@ -941,7 +912,7 @@
             
             corregimientos.forEach(f => {
                 const nombre = f.properties.CORR_NOMB || 'Sin nombre';
-                const id = f.properties.CORR_ID || f.properties.ID || '';
+                const id = f.properties.CORR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID);
                 html += `<option value="${id}" data-feature='${JSON.stringify(f)}'>${nombre}</option>`;
             });
             
@@ -949,11 +920,11 @@
             container.innerHTML = html;
 
             // Mostrar corregimientos en el mapa
-            mostrarNivel('corregimientos', distId);
+            mostrarNivel('corregimientos', distCode);
         }
 
         // ================================================================
-        // 11. SELECCIONAR CORREGIMIENTO
+        // 10. SELECCIONAR CORREGIMIENTO
         // ================================================================
         function seleccionarCorregimiento() {
             const select = document.getElementById('selector-corregimiento');
@@ -964,8 +935,8 @@
                 // Volver a mostrar corregimientos
                 const distSelect = document.getElementById('selector-distrito');
                 if (distSelect && distSelect.value) {
-                    const distId = distSelect.value;
-                    mostrarNivel('corregimientos', distId);
+                    const distCode = distSelect.value;
+                    mostrarNivel('corregimientos', distCode);
                 }
                 return;
             }
@@ -973,7 +944,7 @@
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             
-            debugLog(`Corregimiento seleccionado: ${props.CORR_NOMB} (ID: ${props.CORR_ID})`);
+            console.log(`Corregimiento seleccionado: ${props.CORR_NOMB} (CORR_CODE: ${value})`);
             
             mostrarDatosTabla(props, 'Corregimiento');
             
@@ -990,7 +961,7 @@
         }
 
         // ================================================================
-        // 12. VOLVER NIVEL ANTERIOR
+        // 11. VOLVER NIVEL ANTERIOR
         // ================================================================
         function volverNivel() {
             if (historial.length <= 1) return;
@@ -1022,18 +993,17 @@
             } else if (nivelAnterior === 'corregimientos') {
                 const distSelect = document.getElementById('selector-distrito');
                 if (distSelect && distSelect.value) {
-                    const distId = distSelect.value;
-                    const distFeature = JSON.parse(distSelect.options[distSelect.selectedIndex].dataset.feature);
-                    mostrarNivel('corregimientos', distId);
-                    cargarCorregimientos(distFeature.properties);
+                    const distCode = distSelect.value;
+                    mostrarNivel('corregimientos', distCode);
+                    cargarCorregimientos(distCode);
                 }
             }
             
-            debugLog(`Volviendo a nivel: ${nivelAnterior}`);
+            console.log(`Volviendo a nivel: ${nivelAnterior}`);
         }
 
         // ================================================================
-        // 13. MOSTRAR DATOS EN TABLA
+        // 12. MOSTRAR DATOS EN TABLA
         // ================================================================
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
@@ -1041,7 +1011,8 @@
             const nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 'Sin nombre';
             
             const camposPrioritarios = [
-                'PROV_ID', 'PROV_NOMB', 'DIST_ID', 'DIST_NOMB', 'CORR_ID', 'CORR_NOMB',
+                'PROV_ID', 'PROV_NOMB', 'DIST_ID', 'DIST_NOMB', 'DIST_CODE',
+                'CORR_ID', 'CORR_NOMB', 'CORR_CODE',
                 'PROV_LEY', 'LEY_MOD_P', 'GACETA_P', 'GACE_MOD_P',
                 'AREA', 'PERIMETRO',
                 'N_PERSONAS', 'P_HOMBRES', 'P_MUJERES', 'MAYOR_18',
@@ -1092,7 +1063,7 @@
         }
 
         // ================================================================
-        // 14. EXPORTAR
+        // 13. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!capaActual) {
@@ -1109,7 +1080,6 @@
             link.download = `${nombre}.geojson`;
             link.click();
             URL.revokeObjectURL(link.href);
-            debugLog(`📥 GeoJSON exportado: ${nombre}`);
         }
 
         function exportarCSV() {
@@ -1147,11 +1117,10 @@
             link.download = `datos_${nivelActual}.csv`;
             link.click();
             URL.revokeObjectURL(link.href);
-            debugLog(`📊 CSV exportado: ${nivelActual}`);
         }
 
         // ================================================================
-        // 15. MAPA BASE
+        // 14. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -1163,7 +1132,7 @@
         }
 
         // ================================================================
-        // 16. RESET
+        // 15. RESET
         // ================================================================
         function resetearMapa() {
             historial = ['provincias'];
@@ -1186,11 +1155,10 @@
                 </div>
             `;
             itemSeleccionado = null;
-            debugLog('🔄 Mapa reseteado');
         }
 
         // ================================================================
-        // 17. INICIO
+        // 16. INICIO
         // ================================================================
         window.cambiarMapa = cambiarMapa;
         window.seleccionarItem = seleccionarItem;
