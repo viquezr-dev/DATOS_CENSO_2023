@@ -22,7 +22,7 @@
             padding: 12px 14px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            max-width: 310px;
+            max-width: 330px;
             backdrop-filter: blur(4px);
             border: 1px solid rgba(255,255,255,0.3);
             max-height: 95vh;
@@ -99,7 +99,7 @@
             border-left: 3px solid #2c6b9e;
             font-size: 10px;
             line-height: 1.5;
-            max-height: 400px;
+            max-height: 420px;
             overflow-y: auto;
         }
         .info-panel h4 { 
@@ -114,18 +114,33 @@
             border-collapse: collapse;
             font-size: 9px;
         }
+        .info-panel table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .info-panel table tr:hover {
+            background: #e9ecef;
+        }
         .info-panel table td {
-            padding: 2px 4px;
+            padding: 3px 5px;
             border-bottom: 1px solid #eee;
         }
         .info-panel table .campo {
             color: #555;
             font-weight: 500;
+            width: 55%;
         }
         .info-panel table .valor {
             font-weight: 600;
             color: #1a2a3a;
             text-align: right;
+            width: 45%;
+        }
+        .info-panel .sin-datos {
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 15px 0;
+            font-size: 9px;
         }
 
         .footer { 
@@ -172,7 +187,6 @@
         }
         .loading .title { font-weight: 600; font-size: 14px; color: #1a2a3a; }
         .loading .subtitle { font-size: 11px; color: #666; margin-top: 4px; }
-        .loading .success { color: #28a745; font-size: 11px; margin-top: 8px; }
 
         .debug-panel {
             position: absolute;
@@ -203,6 +217,9 @@
             .control-panel h3 { font-size: 11px; }
             .loading { min-width: 180px; padding: 15px 20px; }
             .debug-panel { max-width: 180px; font-size: 8px; }
+            .info-panel table { font-size: 8px; }
+            .info-panel table .campo { width: 50%; }
+            .info-panel table .valor { width: 50%; }
         }
     </style>
 </head>
@@ -247,9 +264,10 @@
         <div class="info-panel" id="info-panel">
             <h4>📋 Datos del Censo</h4>
             <div id="info-content">
-                <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
-                    Selecciona una provincia para ver los datos
-                </p>
+                <div class="sin-datos">
+                    🗺️ Haz clic en una provincia en el mapa<br>
+                    o selecciónala en el menú para ver los datos
+                </div>
             </div>
         </div>
     </div>
@@ -316,7 +334,61 @@
         ];
 
         // ================================================================
-        // 4. CARGA DE DATOS
+        // 4. DICCIONARIO DE CAMPOS
+        // ================================================================
+        const descripcionCampos = {
+            'PROV_ID': 'Código de Provincia',
+            'PROV_NOMB': 'Nombre de Provincia',
+            'PROV_LEY': 'Ley de Creación',
+            'LEY_MOD_P': 'Ley Modificatoria',
+            'GACETA_P': 'Gaceta Oficial',
+            'GACE_MOD_P': 'Gaceta Modificatoria',
+            'PERIMETRO': 'Perímetro (m)',
+            'AREA': 'Área (m²)',
+            'N_PERSONAS': 'Total de Personas',
+            'P_HOMBRES': 'Cantidad de Hombres',
+            'P_MUJERES': 'Cantidad de Mujeres',
+            'MAYOR_18': 'Mayores de 18 años',
+            'MENOS_PRIM': 'Menos de 3er grado de primaria',
+            'AGROPEC': 'Actividades Agropecuarias',
+            'NO_ECO_ACT': 'No Económicamente Activa',
+            'DESOCUP': 'Desocupados',
+            'ANALFAB': 'Analfabeta',
+            'CON_DISC': 'Con alguna Discapacidad',
+            'N_VIVIENDA': 'Total de Viviendas',
+            'V_INDIV': 'Vivienda Individual',
+            'V_IMPROV': 'Vivienda Improvisada',
+            'V_APARTAM': 'Apartamento',
+            'V_CUARTOS': 'Cuarto en Casa de Vecindad',
+            'V_LOCAL': 'Local usado como Vivienda',
+            'V_DAMNI': 'Damnificados',
+            'V_INDIG': 'Indigentes',
+            'V_COLECTIV': 'Vivienda Colectiva',
+            'V_ASILOS': 'Asilos / Hogar de Ancianos',
+            'V_PRO_ADOL': 'Protección de Niños y Adolescentes',
+            'V_CARCELES': 'Cárceles / Centros de Custodia',
+            'V_CON_REL': 'Conventos / Seminarios',
+            'V_TRABA': 'Trabajaderos',
+            'V_ALBE_MIG': 'Albergues de Migrantes',
+            'V_REHABILI': 'Centros de Rehabilitación',
+            'V_OTR_COLE': 'Otra Vivienda Colectiva',
+            'TOTA_VIV_P': 'Viviendas con Ocupantes Presentes',
+            'CON_PISO_T': 'Con Piso de Tierra',
+            'SIN_AGUA': 'Sin Agua Potable',
+            'SIN_SER_SA': 'Sin Servicio Sanitario',
+            'SIN_LUZ': 'Sin Luz Eléctrica',
+            'COC_LEÑA': 'Cocinan con Leña',
+            'COC_CARBON': 'Cocinan con Carbón',
+            'SIN_TV': 'Sin Televisor',
+            'SIN_RADIO': 'Sin Radio',
+            'SIN_TEL_RE': 'Sin Teléfono Residencial',
+            'SIN_TEL_CE': 'Sin Teléfono Celular Activo',
+            'SIN_INTERN': 'Sin Acceso a Internet',
+            'ID1': 'ID Interno'
+        };
+
+        // ================================================================
+        // 5. CARGA DE DATOS
         // ================================================================
         async function cargarProvincias() {
             try {
@@ -358,6 +430,14 @@
                 // Mostrar en el mapa
                 mostrarTodasLasProvincias();
 
+                // Mostrar mensaje en el panel
+                document.getElementById('info-content').innerHTML = `
+                    <div class="sin-datos">
+                        🗺️ Haz clic en una provincia en el mapa<br>
+                        o selecciónala en el menú para ver los datos
+                    </div>
+                `;
+
                 // Ocultar loading
                 document.getElementById('loading').style.display = 'none';
                 
@@ -378,7 +458,7 @@
         }
 
         // ================================================================
-        // 5. MOSTRAR EN MAPA
+        // 6. MOSTRAR EN MAPA
         // ================================================================
         function mostrarTodasLasProvincias() {
             if (!geoData.provincias) return;
@@ -408,7 +488,15 @@
                     onEachFeature: function(f, layer) {
                         const props = f.properties;
                         const nombre = props.PROV_NOMB || 'Provincia';
-                        layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
+                        
+                        // Tooltip al pasar el mouse
+                        layer.bindTooltip(nombre, { 
+                            permanent: false, 
+                            direction: 'center',
+                            className: 'provincia-tooltip'
+                        });
+                        
+                        // Al hacer clic, seleccionar la provincia
                         layer.on('click', function() {
                             const select = document.getElementById('provincia-select');
                             for (let i = 0; i < select.options.length; i++) {
@@ -422,10 +510,14 @@
                     }
                 }).addTo(map);
 
+                // Ajustar zoom a todas las provincias
                 const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
                 if (bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [20, 20] });
+                    debugLog('📍 Zoom ajustado a todas las provincias', 'info');
                 }
+                
+                debugLog(`✅ ${features.length} provincias mostradas en el mapa`, 'success');
             } catch (error) {
                 debugLog(`Error al mostrar: ${error.message}`, 'error');
             }
@@ -444,6 +536,7 @@
             }
 
             try {
+                // Mostrar la provincia seleccionada con color destacado
                 currentLayerGeo = L.geoJSON(feature, {
                     style: {
                         fillColor: '#2c6b9e',
@@ -459,6 +552,7 @@
                     }
                 }).addTo(map);
 
+                // Borde resaltado
                 highlightLayer = L.geoJSON(feature, {
                     style: {
                         fillColor: 'transparent',
@@ -469,6 +563,7 @@
                     }
                 }).addTo(map);
 
+                // Hacer zoom a la provincia
                 const bounds = L.geoJSON(feature).getBounds();
                 if (bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
@@ -479,7 +574,7 @@
         }
 
         // ================================================================
-        // 6. SELECCIÓN DE PROVINCIA
+        // 7. SELECCIÓN DE PROVINCIA
         // ================================================================
         function seleccionarProvincia() {
             const select = document.getElementById('provincia-select');
@@ -488,9 +583,10 @@
             if (!provId) {
                 mostrarTodasLasProvincias();
                 document.getElementById('info-content').innerHTML = `
-                    <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
-                        Selecciona una provincia para ver los datos
-                    </p>
+                    <div class="sin-datos">
+                        🗺️ Haz clic en una provincia en el mapa<br>
+                        o selecciónala en el menú para ver los datos
+                    </div>
                 `;
                 return;
             }
@@ -504,33 +600,42 @@
         }
 
         // ================================================================
-        // 7. MOSTRAR DATOS EN TABLA (TAL CUAL)
+        // 8. MOSTRAR DATOS EN TABLA CON NOMBRES DESCRIPTIVOS
         // ================================================================
         function mostrarDatosTabla(props) {
             const container = document.getElementById('info-content');
             
             const nombre = props.PROV_NOMB || 'Sin nombre';
             
-            // Lista de campos a mostrar (en el orden de la tabla original)
-            const campos = [
+            // Orden de campos (priorizando los más importantes primero)
+            const camposPrioritarios = [
                 'PROV_ID', 'PROV_NOMB', 'PROV_LEY', 'LEY_MOD_P', 'GACETA_P', 'GACE_MOD_P',
-                'PERIMETRO', 'AREA', 'N_PERSONAS', 'P_HOMBRES', 'P_MUJERES', 'MAYOR_18',
+                'AREA', 'PERIMETRO',
+                'N_PERSONAS', 'P_HOMBRES', 'P_MUJERES', 'MAYOR_18',
+                'N_VIVIENDA', 'V_INDIV', 'V_APARTAM', 'V_IMPROV', 'V_CUARTOS', 'V_LOCAL',
+                'TOTA_VIV_P', 'CON_PISO_T',
+                'SIN_AGUA', 'SIN_SER_SA', 'SIN_LUZ', 'SIN_INTERN',
+                'SIN_TV', 'SIN_RADIO', 'SIN_TEL_RE', 'SIN_TEL_CE',
+                'COC_LEÑA', 'COC_CARBON',
                 'MENOS_PRIM', 'AGROPEC', 'NO_ECO_ACT', 'DESOCUP', 'ANALFAB', 'CON_DISC',
-                'N_VIVIENDA', 'V_INDIV', 'V_IMPROV', 'V_APARTAM', 'V_CUARTOS', 'V_LOCAL',
-                'V_DAMNI', 'V_INDIG', 'V_COLECTIV', 'V_ASILOS', 'V_PRO_ADOL', 'V_CARCELES',
+                'V_COLECTIV', 'V_ASILOS', 'V_PRO_ADOL', 'V_CARCELES',
                 'V_CON_REL', 'V_TRABA', 'V_ALBE_MIG', 'V_REHABILI', 'V_OTR_COLE',
-                'TOTA_VIV_P', 'CON_PISO_T', 'SIN_AGUA', 'SIN_SER_SA', 'SIN_LUZ',
-                'COC_LEÑA', 'COC_CARBON', 'SIN_TV', 'SIN_RADIO', 'SIN_TEL_RE',
-                'SIN_TEL_CE', 'SIN_INTERN', 'ID1'
+                'V_DAMNI', 'V_INDIG',
+                'ID1'
             ];
 
             let html = `<h4>📋 ${nombre}</h4>`;
             html += `<table>`;
 
-            // Mostrar cada campo con su valor
-            campos.forEach(campo => {
+            let tieneDatos = false;
+
+            camposPrioritarios.forEach(campo => {
                 let valor = props[campo];
                 if (valor !== undefined && valor !== null && valor !== '') {
+                    tieneDatos = true;
+                    // Obtener nombre descriptivo
+                    const nombreCampo = descripcionCampos[campo] || campo;
+                    
                     // Formatear números
                     if (typeof valor === 'number' || !isNaN(parseFloat(valor))) {
                         const num = parseFloat(valor);
@@ -541,18 +646,23 @@
                         }
                     }
                     html += `<tr>
-                        <td class="campo">${campo}</td>
+                        <td class="campo">${nombreCampo}</td>
                         <td class="valor">${valor}</td>
                     </tr>`;
                 }
             });
 
             html += `</table>`;
+
+            if (!tieneDatos) {
+                html = `<div class="sin-datos">No hay datos disponibles para esta provincia</div>`;
+            }
+
             container.innerHTML = html;
         }
 
         // ================================================================
-        // 8. EXPORTAR
+        // 9. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!currentLayerGeo) {
@@ -569,7 +679,7 @@
             link.download = `${nombre.toLowerCase().replace(/\s+/g, '_')}.geojson`;
             link.click();
             URL.revokeObjectURL(link.href);
-            debugLog(`📥 GeoJSON exportado`, 'success');
+            debugLog(`📥 GeoJSON exportado: ${nombre}`, 'success');
         }
 
         function exportarCSV() {
@@ -580,10 +690,12 @@
                 return;
             }
 
+            // Usar nombres descriptivos como headers
             const headers = Object.keys(props);
+            const headersDescriptivos = headers.map(h => descripcionCampos[h] || h);
             const values = headers.map(h => props[h] !== undefined ? props[h] : '');
             
-            let csv = headers.join(',') + '\n';
+            let csv = headersDescriptivos.join(',') + '\n';
             csv += values.join(',') + '\n';
 
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -596,7 +708,7 @@
         }
 
         // ================================================================
-        // 9. MAPA BASE
+        // 10. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -608,7 +720,7 @@
         }
 
         // ================================================================
-        // 10. RESET
+        // 11. RESET
         // ================================================================
         function resetearMapa() {
             document.getElementById('provincia-select').selectedIndex = 0;
@@ -632,15 +744,16 @@
             }
 
             document.getElementById('info-content').innerHTML = `
-                <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
-                    Selecciona una provincia para ver los datos
-                </p>
+                <div class="sin-datos">
+                    🗺️ Haz clic en una provincia en el mapa<br>
+                    o selecciónala en el menú para ver los datos
+                </div>
             `;
             debugLog('🔄 Mapa reseteado', 'info');
         }
 
         // ================================================================
-        // 11. INICIO
+        // 12. INICIO
         // ================================================================
         window.cambiarMapa = cambiarMapa;
         window.seleccionarProvincia = seleccionarProvincia;
