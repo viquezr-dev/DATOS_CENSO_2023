@@ -120,7 +120,6 @@
         .btn-back { background: #6c757d; color: white; }
         .btn-back:hover { background: #5a6268; }
 
-        /* Selectores jerárquicos */
         .selector-wrapper {
             margin-bottom: 4px;
             padding: 4px 6px;
@@ -138,12 +137,6 @@
             font-size: 9px;
             padding: 3px 6px;
             margin-bottom: 0;
-        }
-        .selector-wrapper .mensaje-vacio {
-            font-size: 9px;
-            color: #888;
-            padding: 4px 0;
-            font-style: italic;
         }
 
         .info-panel {
@@ -190,6 +183,7 @@
             color: #1a2a3a;
             text-align: right;
             width: 45%;
+            font-family: 'Courier New', monospace;
         }
         .info-panel .sin-datos {
             color: #888;
@@ -323,9 +317,7 @@
             <button class="btn-map" onclick="cambiarMapa('topo')" id="btn-topo">🗺️</button>
         </div>
 
-        <!-- ============================================================ -->
-        <!-- SELECTOR 1: PROVINCIA (siempre visible)                      -->
-        <!-- ============================================================ -->
+        <!-- SELECTOR 1: PROVINCIA -->
         <div class="selector-wrapper" style="margin-top:6px;border-left-color:#2c6b9e;">
             <label>📍 Provincia:</label>
             <select id="selector-provincia" onchange="cambiarProvincia()">
@@ -333,9 +325,7 @@
             </select>
         </div>
 
-        <!-- ============================================================ -->
-        <!-- SELECTOR 2: DISTRITO (se habilita al seleccionar provincia)   -->
-        <!-- ============================================================ -->
+        <!-- SELECTOR 2: DISTRITO -->
         <div class="selector-wrapper" id="wrapper-distrito" style="border-left-color:#28a745;display:none;">
             <label>📍 Distrito:</label>
             <select id="selector-distrito" onchange="cambiarDistrito()">
@@ -343,9 +333,7 @@
             </select>
         </div>
 
-        <!-- ============================================================ -->
-        <!-- SELECTOR 3: CORREGIMIENTO (se habilita al seleccionar distrito)-->
-        <!-- ============================================================ -->
+        <!-- SELECTOR 3: CORREGIMIENTO -->
         <div class="selector-wrapper" id="wrapper-corregimiento" style="border-left-color:#dc3545;display:none;">
             <label>📍 Corregimiento:</label>
             <select id="selector-corregimiento" onchange="cambiarCorregimiento()">
@@ -379,7 +367,16 @@
     
     <script>
         // ================================================================
-        // 1. MAPA
+        // 1. FUNCIÓN PARA FORMATEAR CÓDIGOS CON CEROS A LA IZQUIERDA
+        // ================================================================
+        function formatearCodigo(valor, longitud) {
+            if (valor === undefined || valor === null || valor === '') return '';
+            // Convertir a string y rellenar con ceros a la izquierda
+            return String(valor).padStart(longitud, '0');
+        }
+
+        // ================================================================
+        // 2. MAPA
         // ================================================================
         const map = L.map('map', { center: [8.5, -80.0], zoom: 7 });
 
@@ -403,7 +400,7 @@
         layers.satellite.addTo(map);
 
         // ================================================================
-        // 2. VARIABLES GLOBALES
+        // 3. VARIABLES GLOBALES
         // ================================================================
         const datos = {
             provincias: null,
@@ -417,7 +414,6 @@
         let nivelActual = 'provincias';
         let historial = ['provincias'];
 
-        // Selección actual
         let seleccion = {
             provincia: null,
             distrito: null,
@@ -434,7 +430,7 @@
         const totalArchivos = 3;
 
         // ================================================================
-        // 3. DICCIONARIO DE CAMPOS
+        // 4. DICCIONARIO DE CAMPOS
         // ================================================================
         const descripcionCampos = {
             'PROV_ID': 'Código de Provincia',
@@ -494,7 +490,7 @@
         };
 
         // ================================================================
-        // 4. CARGA DE DATOS
+        // 5. CARGA DE DATOS
         // ================================================================
         function actualizarProgress() {
             const pct = Math.round((datosCargados / totalArchivos) * 100);
@@ -572,7 +568,7 @@
         }
 
         // ================================================================
-        // 5. MOSTRAR EN MAPA
+        // 6. MOSTRAR EN MAPA
         // ================================================================
         function mostrarNivel(nivel, filtroId = null) {
             if (historial[historial.length - 1] !== nivel) {
@@ -611,7 +607,9 @@
                 features = datos.corregimientos.features.filter(f => {
                     const p = f.properties;
                     const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
-                    return corrCode.substring(0, 4) === filtroId;
+                    // Formatear a 4 dígitos para comparar
+                    const distCodeFormateado = formatearCodigo(filtroId, 4);
+                    return corrCode.substring(0, 4) === distCodeFormateado;
                 });
                 titulo = 'Corregimientos';
                 nivelActual = 'corregimientos';
@@ -654,7 +652,6 @@
                     
                     layer.on('click', function() {
                         if (nivel === 'provincias') {
-                            // Seleccionar provincia
                             const select = document.getElementById('selector-provincia');
                             for (let i = 0; i < select.options.length; i++) {
                                 if (select.options[i].textContent === nombre) {
@@ -664,7 +661,6 @@
                                 }
                             }
                         } else if (nivel === 'distritos') {
-                            // Seleccionar distrito
                             const select = document.getElementById('selector-distrito');
                             for (let i = 0; i < select.options.length; i++) {
                                 if (select.options[i].textContent === nombre) {
@@ -674,7 +670,6 @@
                                 }
                             }
                         } else if (nivel === 'corregimientos') {
-                            // Seleccionar corregimiento
                             const select = document.getElementById('selector-corregimiento');
                             for (let i = 0; i < select.options.length; i++) {
                                 if (select.options[i].textContent === nombre) {
@@ -737,13 +732,12 @@
         }
 
         // ================================================================
-        // 6. CAMBIAR PROVINCIA
+        // 7. CAMBIAR PROVINCIA
         // ================================================================
         function cambiarProvincia() {
             const select = document.getElementById('selector-provincia');
             const value = select.value;
             
-            // Resetear selectores de distrito y corregimiento
             const selectDist = document.getElementById('selector-distrito');
             const selectCorr = document.getElementById('selector-corregimiento');
             const wrapperDist = document.getElementById('wrapper-distrito');
@@ -780,7 +774,6 @@
             
             mostrarDatosTabla(props, 'Provincia');
             
-            // Resaltar
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             capaResaltado = L.geoJSON(feature, {
                 style: {
@@ -792,14 +785,13 @@
                 }
             }).addTo(map);
 
-            // Cargar distritos
             if (datos.distritos) {
                 cargarDistritos(props.PROV_ID);
             }
         }
 
         // ================================================================
-        // 7. CARGAR DISTRITOS
+        // 8. CARGAR DISTRITOS
         // ================================================================
         function cargarDistritos(provId) {
             const selectDist = document.getElementById('selector-distrito');
@@ -829,7 +821,9 @@
             
             distritos.forEach(f => {
                 const nombre = f.properties.DIST_NOMB || 'Sin nombre';
-                const id = f.properties.DIST_CODE || (f.properties.PROV_ID + f.properties.DIST_ID);
+                // Formatear DIST_CODE a 4 dígitos
+                const distCode = f.properties.DIST_CODE || (f.properties.PROV_ID + f.properties.DIST_ID);
+                const id = formatearCodigo(distCode, 4);
                 const option = document.createElement('option');
                 option.value = id;
                 option.textContent = nombre;
@@ -840,10 +834,8 @@
             selectDist.disabled = false;
             wrapperDist.style.display = 'block';
 
-            // Mostrar distritos en el mapa
             mostrarNivel('distritos', provId);
             
-            // Auto-seleccionar el primer distrito si solo hay uno
             if (distritos.length === 1) {
                 selectDist.selectedIndex = 1;
                 cambiarDistrito();
@@ -851,7 +843,7 @@
         }
 
         // ================================================================
-        // 8. CAMBIAR DISTRITO
+        // 9. CAMBIAR DISTRITO
         // ================================================================
         function cambiarDistrito() {
             const select = document.getElementById('selector-distrito');
@@ -865,7 +857,6 @@
             wrapperCorr.style.display = 'none';
             
             if (!value) {
-                // Volver a mostrar distritos
                 if (seleccion.provincia) {
                     mostrarNivel('distritos', seleccion.provincia.PROV_ID);
                 }
@@ -881,7 +872,6 @@
             
             mostrarDatosTabla(props, 'Distrito');
             
-            // Resaltar
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             capaResaltado = L.geoJSON(feature, {
                 style: {
@@ -893,26 +883,27 @@
                 }
             }).addTo(map);
 
-            // Cargar corregimientos
             if (datos.corregimientos) {
                 cargarCorregimientos(value);
             }
         }
 
         // ================================================================
-        // 9. CARGAR CORREGIMIENTOS
+        // 10. CARGAR CORREGIMIENTOS
         // ================================================================
         function cargarCorregimientos(distCode) {
             const selectCorr = document.getElementById('selector-corregimiento');
             const wrapperCorr = document.getElementById('wrapper-corregimiento');
             
+            const distCodeFormateado = formatearCodigo(distCode, 4);
+            
             const corregimientos = datos.corregimientos.features.filter(f => {
                 const p = f.properties;
                 const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
-                return corrCode.substring(0, 4) === distCode;
+                return corrCode.substring(0, 4) === distCodeFormateado;
             });
 
-            console.log(`Corregimientos para distrito ${distCode}: ${corregimientos.length}`);
+            console.log(`Corregimientos para distrito ${distCodeFormateado}: ${corregimientos.length}`);
 
             if (corregimientos.length === 0) {
                 selectCorr.innerHTML = '<option value="">No hay corregimientos disponibles</option>';
@@ -931,7 +922,8 @@
             
             corregimientos.forEach(f => {
                 const nombre = f.properties.CORR_NOMB || 'Sin nombre';
-                const id = f.properties.CORR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID);
+                const corrCode = f.properties.CORR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID);
+                const id = formatearCodigo(corrCode, 6);
                 const option = document.createElement('option');
                 option.value = id;
                 option.textContent = nombre;
@@ -942,10 +934,8 @@
             selectCorr.disabled = false;
             wrapperCorr.style.display = 'block';
 
-            // Mostrar corregimientos en el mapa
-            mostrarNivel('corregimientos', distCode);
+            mostrarNivel('corregimientos', distCodeFormateado);
             
-            // Auto-seleccionar el primer corregimiento si solo hay uno
             if (corregimientos.length === 1) {
                 selectCorr.selectedIndex = 1;
                 cambiarCorregimiento();
@@ -953,18 +943,18 @@
         }
 
         // ================================================================
-        // 10. CAMBIAR CORREGIMIENTO
+        // 11. CAMBIAR CORREGIMIENTO
         // ================================================================
         function cambiarCorregimiento() {
             const select = document.getElementById('selector-corregimiento');
             const value = select.value;
             
             if (!value) {
-                // Volver a mostrar corregimientos
                 if (seleccion.distrito) {
                     const distCode = seleccion.distrito.DIST_CODE || 
                                     (seleccion.distrito.PROV_ID + seleccion.distrito.DIST_ID);
-                    mostrarNivel('corregimientos', distCode);
+                    const distCodeFormateado = formatearCodigo(distCode, 4);
+                    mostrarNivel('corregimientos', distCodeFormateado);
                 }
                 seleccion.corregimiento = null;
                 return;
@@ -976,7 +966,6 @@
             
             mostrarDatosTabla(props, 'Corregimiento');
             
-            // Resaltar
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             capaResaltado = L.geoJSON(feature, {
                 style: {
@@ -990,7 +979,7 @@
         }
 
         // ================================================================
-        // 11. VOLVER NIVEL ANTERIOR
+        // 12. VOLVER NIVEL ANTERIOR
         // ================================================================
         function volverNivel() {
             if (historial.length <= 1) return;
@@ -1002,19 +991,18 @@
                 document.getElementById('selector-provincia').selectedIndex = 0;
                 cambiarProvincia();
             } else if (nivelAnterior === 'distritos') {
-                // Volver a distritos
                 if (seleccion.provincia) {
                     const provId = seleccion.provincia.PROV_ID;
                     mostrarNivel('distritos', provId);
                     cargarDistritos(provId);
                 }
             } else if (nivelAnterior === 'corregimientos') {
-                // Volver a corregimientos
                 if (seleccion.distrito) {
                     const distCode = seleccion.distrito.DIST_CODE || 
                                     (seleccion.distrito.PROV_ID + seleccion.distrito.DIST_ID);
-                    mostrarNivel('corregimientos', distCode);
-                    cargarCorregimientos(distCode);
+                    const distCodeFormateado = formatearCodigo(distCode, 4);
+                    mostrarNivel('corregimientos', distCodeFormateado);
+                    cargarCorregimientos(distCodeFormateado);
                 }
             }
             
@@ -1022,12 +1010,15 @@
         }
 
         // ================================================================
-        // 12. MOSTRAR DATOS EN TABLA
+        // 13. MOSTRAR DATOS EN TABLA CON FORMATO CORRECTO
         // ================================================================
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
             
             const nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 'Sin nombre';
+            
+            // Campos que deben tener formato de código
+            const camposCodigo = ['PROV_ID', 'DIST_ID', 'CORR_ID', 'DIST_CODE', 'CORR_CODE'];
             
             const camposPrioritarios = [
                 'PROV_ID', 'PROV_NOMB', 'DIST_ID', 'DIST_NOMB', 'DIST_CODE',
@@ -1057,7 +1048,13 @@
                     tieneDatos = true;
                     const nombreCampo = descripcionCampos[campo] || campo;
                     
-                    if (typeof valor === 'number' || !isNaN(parseFloat(valor))) {
+                    // Si es un campo de código, formatear con ceros a la izquierda
+                    if (camposCodigo.includes(campo)) {
+                        let longitud = 2;
+                        if (campo === 'DIST_CODE') longitud = 4;
+                        if (campo === 'CORR_CODE') longitud = 6;
+                        valor = formatearCodigo(valor, longitud);
+                    } else if (typeof valor === 'number' || !isNaN(parseFloat(valor))) {
                         const num = parseFloat(valor);
                         if (Number.isInteger(num)) {
                             valor = num.toLocaleString();
@@ -1082,7 +1079,7 @@
         }
 
         // ================================================================
-        // 13. EXPORTAR
+        // 14. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!capaActual) {
@@ -1118,7 +1115,18 @@
             }
 
             const headers = Object.keys(props);
-            const values = headers.map(h => props[h] !== undefined ? props[h] : '');
+            const values = headers.map(h => {
+                let val = props[h];
+                // Formatear códigos en la exportación
+                if (['PROV_ID', 'DIST_ID', 'CORR_ID'].includes(h)) {
+                    val = formatearCodigo(val, 2);
+                } else if (h === 'DIST_CODE') {
+                    val = formatearCodigo(val, 4);
+                } else if (h === 'CORR_CODE') {
+                    val = formatearCodigo(val, 6);
+                }
+                return val !== undefined ? val : '';
+            });
             
             let csv = headers.join(',') + '\n';
             csv += values.join(',') + '\n';
@@ -1132,7 +1140,7 @@
         }
 
         // ================================================================
-        // 14. MAPA BASE
+        // 15. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -1144,13 +1152,12 @@
         }
 
         // ================================================================
-        // 15. RESET
+        // 16. RESET
         // ================================================================
         function resetearMapa() {
             historial = ['provincias'];
             document.getElementById('btn-back').style.display = 'none';
             
-            // Resetear selectores
             document.getElementById('selector-provincia').selectedIndex = 0;
             document.getElementById('selector-distrito').innerHTML = '<option value="">Seleccionar distrito...</option>';
             document.getElementById('selector-corregimiento').innerHTML = '<option value="">Seleccionar corregimiento...</option>';
@@ -1179,7 +1186,7 @@
         }
 
         // ================================================================
-        // 16. INICIO
+        // 17. INICIO
         // ================================================================
         window.cambiarMapa = cambiarMapa;
         window.cambiarProvincia = cambiarProvincia;
