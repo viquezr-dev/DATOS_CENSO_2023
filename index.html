@@ -166,6 +166,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            flex-wrap: wrap;
         }
         .info-panel table {
             width: 100%;
@@ -203,10 +204,8 @@
             margin-bottom: 8px;
         }
         .info-panel .btn-grafica-mini {
-            display: block;
-            width: 100%;
-            margin-top: 6px;
-            padding: 4px;
+            display: inline-block;
+            padding: 3px 10px;
             background: #6f42c1;
             color: white;
             border: none;
@@ -215,9 +214,30 @@
             font-weight: 600;
             cursor: pointer;
             transition: background 0.2s;
+            margin-left: 4px;
         }
         .info-panel .btn-grafica-mini:hover {
             background: #5a32a3;
+        }
+        .info-panel .densidad-card {
+            background: #e8f0fe;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-top: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #d4e2f7;
+        }
+        .info-panel .densidad-card .label {
+            font-size: 9px;
+            color: #2c6b9e;
+            font-weight: 600;
+        }
+        .info-panel .densidad-card .valor {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a4a7a;
         }
 
         .footer { 
@@ -362,6 +382,26 @@
             color: #888;
             margin-top: 4px;
         }
+        .modal-content .densidad-modal {
+            background: #e8f0fe;
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #d4e2f7;
+        }
+        .modal-content .densidad-modal .label {
+            font-size: 11px;
+            color: #2c6b9e;
+            font-weight: 600;
+        }
+        .modal-content .densidad-modal .valor {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a4a7a;
+        }
 
         @media (max-width: 600px) {
             .control-panel { 
@@ -380,6 +420,7 @@
             .footer { font-size: 7px; padding: 2px 10px; }
             .modal-content { padding: 16px; }
             .modal-content canvas { max-height: 250px; }
+            .modal-content .densidad-modal .valor { font-size: 14px; }
         }
     </style>
 </head>
@@ -404,6 +445,10 @@
                 <button class="modal-close" onclick="cerrarModal()">&times;</button>
             </div>
             <div class="chart-title" id="modal-subtitulo"></div>
+            <div id="modal-densidad" class="densidad-modal" style="display:none;">
+                <span class="label">🏙️ Densidad poblacional</span>
+                <span class="valor" id="modal-densidad-valor">0 hab/km²</span>
+            </div>
             <canvas id="modal-chart"></canvas>
             <div class="chart-subtitle" id="modal-nota">* Los porcentajes se calculan sobre el total de la población o viviendas</div>
         </div>
@@ -969,10 +1014,10 @@
         // 8. RESETEAR SELECTORES HIJOS
         // ================================================================
         function resetearSelectoresHijos() {
-            const selects = ['distrito', 'corregimiento', 'lugar', 'barrio'];
+            const ids = ['distrito', 'corregimiento', 'lugar', 'barrio'];
             const wrappers = ['wrapper-distrito', 'wrapper-corregimiento', 'wrapper-lugar', 'wrapper-barrio'];
             
-            selects.forEach(id => {
+            ids.forEach(id => {
                 const select = document.getElementById('selector-' + id);
                 if (select) {
                     select.innerHTML = '<option value="">Seleccionar ' + id + '...</option>';
@@ -1042,11 +1087,11 @@
             const select = document.getElementById('selector-distrito');
             const value = select.value;
             
-            // Resetear selectores hijos (corregimiento, lugar, barrio)
-            const selects = ['corregimiento', 'lugar', 'barrio'];
+            // Resetear selectores hijos
+            const ids = ['corregimiento', 'lugar', 'barrio'];
             const wrappers = ['wrapper-corregimiento', 'wrapper-lugar', 'wrapper-barrio'];
             
-            selects.forEach(id => {
+            ids.forEach(id => {
                 const sel = document.getElementById('selector-' + id);
                 if (sel) {
                     sel.innerHTML = '<option value="">Seleccionar ' + id + '...</option>';
@@ -1155,10 +1200,10 @@
             const value = select.value;
             
             // Resetear selectores hijos (lugar, barrio)
-            const selects = ['lugar', 'barrio'];
+            const ids = ['lugar', 'barrio'];
             const wrappers = ['wrapper-lugar', 'wrapper-barrio'];
             
-            selects.forEach(id => {
+            ids.forEach(id => {
                 const sel = document.getElementById('selector-' + id);
                 if (sel) {
                     sel.innerHTML = '<option value="">Seleccionar ' + id + '...</option>';
@@ -1410,14 +1455,12 @@
             
             const nivelAnterior = niveles[idx - 1];
             
-            // Resetear selectores según el nivel
             if (nivelActual === 'barrios') {
                 document.getElementById('selector-barrio').selectedIndex = 0;
                 document.getElementById('selector-barrio').disabled = true;
                 document.getElementById('wrapper-barrio').style.display = 'none';
                 seleccion.barrio = null;
                 
-                // Volver a mostrar lugares
                 if (seleccion.lugar) {
                     const lupoCode = seleccion.lugar.LUPO_CODE || 
                                     (seleccion.lugar.PROV_ID + seleccion.lugar.DIST_ID + seleccion.lugar.CORR_ID + seleccion.lugar.LUPO_ID);
@@ -1436,7 +1479,6 @@
                 document.getElementById('wrapper-lugar').style.display = 'none';
                 seleccion.lugar = null;
                 
-                // Volver a mostrar corregimientos
                 if (seleccion.corregimiento) {
                     const corrCode = seleccion.corregimiento.CORR_CODE || 
                                     (seleccion.corregimiento.PROV_ID + seleccion.corregimiento.DIST_ID + seleccion.corregimiento.CORR_ID);
@@ -1455,7 +1497,6 @@
                 document.getElementById('wrapper-corregimiento').style.display = 'none';
                 seleccion.corregimiento = null;
                 
-                // Volver a mostrar distritos
                 if (seleccion.distrito) {
                     const provId = seleccion.distrito.PROV_ID;
                     mostrarNivel('distritos', provId);
@@ -1472,7 +1513,6 @@
                 document.getElementById('wrapper-distrito').style.display = 'none';
                 seleccion.distrito = null;
                 
-                // Volver a mostrar provincias
                 mostrarNivel('provincias');
                 if (seleccion.provincia) {
                     const selectProv = document.getElementById('selector-provincia');
@@ -1491,7 +1531,7 @@
         }
 
         // ================================================================
-        // 18. MOSTRAR DATOS EN TABLA
+        // 18. MOSTRAR DATOS EN TABLA CON TARJETA DE DENSIDAD
         // ================================================================
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
@@ -1543,6 +1583,10 @@
             // Mostrar botón de gráfica si hay datos suficientes
             const poblacion = parseFloat(props.N_PERSONAS) || 0;
             const viviendas = parseFloat(props.N_VIVIENDA) || 0;
+            const area = parseFloat(props.AREA) || 1;
+            const areaKm2 = area / 1000000;
+            const densidad = areaKm2 > 0 ? poblacion / areaKm2 : 0;
+            
             if (poblacion > 0 || viviendas > 0) {
                 html += ` <button class="btn-grafica-mini" onclick="abrirModal()">📊 Ver Gráfica</button>`;
                 document.getElementById('btn-grafica').style.display = 'block';
@@ -1550,6 +1594,15 @@
                 document.getElementById('btn-grafica').style.display = 'none';
             }
             html += `</h4>`;
+            
+            // Tarjeta de densidad (si hay datos)
+            if (densidad > 0) {
+                html += `<div class="densidad-card">
+                    <span class="label">🏙️ Densidad poblacional</span>
+                    <span class="valor">${Math.round(densidad).toLocaleString()} hab/km²</span>
+                </div>`;
+            }
+            
             html += `<table>`;
 
             let tieneDatos = false;
@@ -1612,6 +1665,8 @@
             
             const titulo = document.getElementById('modal-titulo');
             const subtitulo = document.getElementById('modal-subtitulo');
+            const densidadDiv = document.getElementById('modal-densidad');
+            const densidadValor = document.getElementById('modal-densidad-valor');
             
             let nombre = '';
             if (tituloActual === 'Provincia') {
@@ -1629,6 +1684,19 @@
             titulo.textContent = `📊 Indicadores Socioeconómicos - ${nombre}`;
             subtitulo.textContent = `${tituloActual}: ${nombre}`;
             
+            // Calcular densidad para el modal
+            const area = parseFloat(propsActuales.AREA) || 1;
+            const poblacion = parseFloat(propsActuales.N_PERSONAS) || 0;
+            const areaKm2 = area / 1000000;
+            const densidad = areaKm2 > 0 ? poblacion / areaKm2 : 0;
+            
+            if (densidad > 0) {
+                densidadDiv.style.display = 'flex';
+                densidadValor.textContent = Math.round(densidad).toLocaleString() + ' hab/km²';
+            } else {
+                densidadDiv.style.display = 'none';
+            }
+            
             crearGraficaModal(propsActuales);
         }
 
@@ -1642,7 +1710,7 @@
         }
 
         // ================================================================
-        // 20. CREAR GRÁFICA EN MODAL
+        // 20. CREAR GRÁFICA EN MODAL (SOLO PORCENTAJES)
         // ================================================================
         function crearGraficaModal(props) {
             const canvas = document.getElementById('modal-chart');
@@ -1658,15 +1726,12 @@
             const ocupadas = parseFloat(props.TOTA_VIV_P) || 0;
             const hombres = parseFloat(props.P_HOMBRES) || 0;
             const mujeres = parseFloat(props.P_MUJERES) || 0;
-            const area = parseFloat(props.AREA) || 1;
             const desocupados = parseFloat(props.DESOCUP) || 0;
             const analfabetas = parseFloat(props.ANALFAB) || 0;
             const sinAgua = parseFloat(props.SIN_AGUA) || 0;
             const sinLuz = parseFloat(props.SIN_LUZ) || 0;
             const sinInternet = parseFloat(props.SIN_INTERN) || 0;
 
-            const areaKm2 = area / 1000000;
-            const densidad = areaKm2 > 0 ? poblacion / areaKm2 : 0;
             const pctOcupacion = viviendas > 0 ? (ocupadas / viviendas) * 100 : 0;
             const pctDesocupacion = viviendas > 0 ? ((viviendas - ocupadas) / viviendas) * 100 : 0;
             const pctHombres = poblacion > 0 ? (hombres / poblacion) * 100 : 0;
@@ -1674,23 +1739,13 @@
             const pctDesocupados = poblacion > 0 ? (desocupados / poblacion) * 100 : 0;
 
             const datosGrafica = [];
-            
-            if (densidad > 0) {
-                datosGrafica.push({
-                    label: 'Densidad (hab/km²)',
-                    value: Math.round(densidad),
-                    color: '#2c6b9e',
-                    esPorcentaje: false,
-                    displayValue: Math.round(densidad).toLocaleString()
-                });
-            }
 
+            // Solo porcentajes (sin densidad)
             if (pctOcupacion > 0) {
                 datosGrafica.push({
                     label: 'Viviendas ocupadas',
                     value: pctOcupacion,
                     color: '#28a745',
-                    esPorcentaje: true,
                     displayValue: pctOcupacion.toFixed(1) + '%'
                 });
             }
@@ -1700,7 +1755,6 @@
                     label: 'Viviendas desocupadas',
                     value: pctDesocupacion,
                     color: '#dc3545',
-                    esPorcentaje: true,
                     displayValue: pctDesocupacion.toFixed(1) + '%'
                 });
             }
@@ -1710,7 +1764,6 @@
                     label: 'Hombres',
                     value: pctHombres,
                     color: '#17a2b8',
-                    esPorcentaje: true,
                     displayValue: pctHombres.toFixed(1) + '%'
                 });
             }
@@ -1720,7 +1773,6 @@
                     label: 'Mujeres',
                     value: pctMujeres,
                     color: '#e83e8c',
-                    esPorcentaje: true,
                     displayValue: pctMujeres.toFixed(1) + '%'
                 });
             }
@@ -1730,7 +1782,6 @@
                     label: 'Analfabetismo',
                     value: analfabetas,
                     color: '#fd7e14',
-                    esPorcentaje: true,
                     displayValue: analfabetas.toFixed(1) + '%'
                 });
             }
@@ -1740,7 +1791,6 @@
                     label: 'Desocupación laboral',
                     value: pctDesocupados,
                     color: '#dc3545',
-                    esPorcentaje: true,
                     displayValue: pctDesocupados.toFixed(1) + '%'
                 });
             }
@@ -1750,7 +1800,6 @@
                     label: 'Sin agua potable',
                     value: sinAgua,
                     color: '#17a2b8',
-                    esPorcentaje: true,
                     displayValue: sinAgua.toFixed(1) + '%'
                 });
             }
@@ -1760,7 +1809,6 @@
                     label: 'Sin luz eléctrica',
                     value: sinLuz,
                     color: '#ffc107',
-                    esPorcentaje: true,
                     displayValue: sinLuz.toFixed(1) + '%'
                 });
             }
@@ -1770,7 +1818,6 @@
                     label: 'Sin internet',
                     value: sinInternet,
                     color: '#6f42c1',
-                    esPorcentaje: true,
                     displayValue: sinInternet.toFixed(1) + '%'
                 });
             }
@@ -1784,19 +1831,14 @@
                 return;
             }
 
-            // Ordenar: primero densidad, luego porcentajes de mayor a menor
-            datosGrafica.sort((a, b) => {
-                if (a.esPorcentaje && !b.esPorcentaje) return 1;
-                if (!a.esPorcentaje && b.esPorcentaje) return -1;
-                return b.value - a.value;
-            });
+            // Ordenar de mayor a menor
+            datosGrafica.sort((a, b) => b.value - a.value);
 
             const ctx = canvas.getContext('2d');
             
             const labels = datosGrafica.map(d => d.label);
             const values = datosGrafica.map(d => d.value);
             const colors = datosGrafica.map(d => d.color);
-            const esPorcentaje = datosGrafica.map(d => d.esPorcentaje);
             const displayValues = datosGrafica.map(d => d.displayValue);
 
             chartModalInstance = new Chart(ctx, {
@@ -1823,7 +1865,7 @@
                             callbacks: {
                                 label: function(context) {
                                     const idx = context.dataIndex;
-                                    return displayValues[idx] || context.parsed.x.toFixed(1);
+                                    return displayValues[idx] || context.parsed.x.toFixed(1) + '%';
                                 }
                             }
                         }
@@ -1831,12 +1873,10 @@
                     scales: {
                         x: {
                             beginAtZero: true,
+                            max: 100,
                             ticks: {
                                 font: { size: 10 },
                                 callback: function(value) {
-                                    if (value > 100) {
-                                        return value.toLocaleString();
-                                    }
                                     return value + '%';
                                 }
                             }
