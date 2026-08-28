@@ -1195,7 +1195,7 @@
         }
 
         // ================================================================
-        // 14. CREAR GRÁFICA SOCIOECONÓMICA
+        // 14. CREAR GRÁFICA SOCIOECONÓMICA (VERSIÓN CORREGIDA)
         // ================================================================
         function crearGraficaSocioeconomica(props, titulo) {
             const canvas = document.getElementById('chart-indicadores');
@@ -1205,132 +1205,143 @@
                 chartIndicadoresInstance.destroy();
                 chartIndicadoresInstance = null;
             }
-
+        
             // Calcular indicadores
             const poblacion = parseFloat(props.N_PERSONAS) || 0;
             const viviendas = parseFloat(props.N_VIVIENDA) || 0;
-            const ocupadas = parseFloat(props.TOTA_VIV_P) || 0; // Viviendas con ocupantes presentes
+            const ocupadas = parseFloat(props.TOTA_VIV_P) || 0;
             const hombres = parseFloat(props.P_HOMBRES) || 0;
             const mujeres = parseFloat(props.P_MUJERES) || 0;
-            const area = parseFloat(props.AREA) || 1; // en m²
+            const area = parseFloat(props.AREA) || 1;
             const desocupados = parseFloat(props.DESOCUP) || 0;
             const analfabetas = parseFloat(props.ANALFAB) || 0;
             const mayores18 = parseFloat(props.MAYOR_18) || 0;
             const sinAgua = parseFloat(props.SIN_AGUA) || 0;
             const sinLuz = parseFloat(props.SIN_LUZ) || 0;
             const sinInternet = parseFloat(props.SIN_INTERN) || 0;
-
+        
             // Calcular densidad (hab/km²)
             const areaKm2 = area / 1000000;
             const densidad = areaKm2 > 0 ? poblacion / areaKm2 : 0;
-
+        
             // Calcular porcentaje de ocupación
             const pctOcupacion = viviendas > 0 ? (ocupadas / viviendas) * 100 : 0;
             const pctDesocupacion = viviendas > 0 ? ((viviendas - ocupadas) / viviendas) * 100 : 0;
-
+        
             // Calcular porcentaje de hombres/mujeres
             const pctHombres = poblacion > 0 ? (hombres / poblacion) * 100 : 0;
             const pctMujeres = poblacion > 0 ? (mujeres / poblacion) * 100 : 0;
-
-            // Calcular porcentaje de mayores de 18
-            const pctMayores18 = poblacion > 0 ? (mayores18 / poblacion) * 100 : 0;
-
+        
+            // Calcular porcentaje de desocupados sobre la población total
+            const pctDesocupados = poblacion > 0 ? (desocupados / poblacion) * 100 : 0;
+        
             // Datos para la gráfica
             const datosGrafica = [];
             
-            // 1. Densidad poblacional (valor absoluto, no porcentaje)
+            // 1. Densidad poblacional - valor formateado para mostrar
             if (densidad > 0) {
                 datosGrafica.push({
                     label: 'Densidad (hab/km²)',
                     value: Math.round(densidad),
                     color: '#2c6b9e',
-                    esPorcentaje: false
+                    esPorcentaje: false,
+                    displayValue: Math.round(densidad).toLocaleString()
                 });
             }
-
+        
             // 2. Ocupación de viviendas
             if (pctOcupacion > 0) {
                 datosGrafica.push({
                     label: 'Viviendas ocupadas',
                     value: pctOcupacion,
                     color: '#28a745',
-                    esPorcentaje: true
+                    esPorcentaje: true,
+                    displayValue: pctOcupacion.toFixed(1) + '%'
                 });
             }
-
+        
             // 3. Desocupación de viviendas
             if (pctDesocupacion > 0) {
                 datosGrafica.push({
                     label: 'Viviendas desocupadas',
                     value: pctDesocupacion,
                     color: '#dc3545',
-                    esPorcentaje: true
+                    esPorcentaje: true,
+                    displayValue: pctDesocupacion.toFixed(1) + '%'
                 });
             }
-
+        
             // 4. Distribución de género
-            if (pctHombres > 0 && pctMujeres > 0) {
+            if (pctHombres > 0) {
                 datosGrafica.push({
-                    label: 'Hombres',
+                    label: 'Hombres (%)',
                     value: pctHombres,
                     color: '#17a2b8',
-                    esPorcentaje: true
-                });
-                datosGrafica.push({
-                    label: 'Mujeres',
-                    value: pctMujeres,
-                    color: '#e83e8c',
-                    esPorcentaje: true
+                    esPorcentaje: true,
+                    displayValue: pctHombres.toFixed(1) + '%'
                 });
             }
-
-            // 5. Indicadores sociales (porcentajes)
-            if (analfabetas > 0) {
+            if (pctMujeres > 0) {
+                datosGrafica.push({
+                    label: 'Mujeres (%)',
+                    value: pctMujeres,
+                    color: '#e83e8c',
+                    esPorcentaje: true,
+                    displayValue: pctMujeres.toFixed(1) + '%'
+                });
+            }
+        
+            // 5. Indicadores sociales (ya son porcentajes directos)
+            if (analfabetas > 0 && analfabetas <= 100) {
                 datosGrafica.push({
                     label: 'Analfabetismo',
                     value: analfabetas,
                     color: '#fd7e14',
-                    esPorcentaje: true
+                    esPorcentaje: true,
+                    displayValue: analfabetas.toFixed(1) + '%'
                 });
             }
-
-            if (desocupados > 0 && poblacion > 0) {
-                const pctDesocupados = (desocupados / poblacion) * 100;
+        
+            if (pctDesocupados > 0 && pctDesocupados <= 100) {
                 datosGrafica.push({
                     label: 'Desocupación laboral',
                     value: pctDesocupados,
                     color: '#dc3545',
-                    esPorcentaje: true
+                    esPorcentaje: true,
+                    displayValue: pctDesocupados.toFixed(1) + '%'
                 });
             }
-
-            if (sinAgua > 0) {
+        
+            if (sinAgua > 0 && sinAgua <= 100) {
                 datosGrafica.push({
                     label: 'Sin agua potable',
                     value: sinAgua,
                     color: '#17a2b8',
-                    esPorcentaje: true
+                    esPorcentaje: true,
+                    displayValue: sinAgua.toFixed(1) + '%'
                 });
             }
-
-            if (sinLuz > 0) {
+        
+            if (sinLuz > 0 && sinLuz <= 100) {
                 datosGrafica.push({
                     label: 'Sin luz eléctrica',
                     value: sinLuz,
                     color: '#ffc107',
-                    esPorcentaje: true
+                    esPorcentaje: true,
+                    displayValue: sinLuz.toFixed(1) + '%'
                 });
             }
-
-            if (sinInternet > 0) {
+        
+            if (sinInternet > 0 && sinInternet <= 100) {
                 datosGrafica.push({
                     label: 'Sin internet',
                     value: sinInternet,
                     color: '#6f42c1',
-                    esPorcentaje: true
+                    esPorcentaje: true,
+                    displayValue: sinInternet.toFixed(1) + '%'
                 });
             }
-
+        
             // Si no hay datos, mostrar mensaje
             if (datosGrafica.length === 0) {
                 canvas.parentElement.innerHTML = `
@@ -1340,35 +1351,22 @@
                 `;
                 return;
             }
-
+        
+            // Ordenar: primero valores absolutos, luego porcentajes de mayor a menor
+            datosGrafica.sort((a, b) => {
+                if (a.esPorcentaje && !b.esPorcentaje) return 1;
+                if (!a.esPorcentaje && b.esPorcentaje) return -1;
+                return b.value - a.value;
+            });
+        
             const ctx = canvas.getContext('2d');
             
-            // Separar datos en dos grupos: valores absolutos y porcentajes
-            const datosAbsolutos = datosGrafica.filter(d => !d.esPorcentaje);
-            const datosPorcentaje = datosGrafica.filter(d => d.esPorcentaje);
-
-            // Si hay valores absolutos, mostrarlos primero
-            let labels = [];
-            let values = [];
-            let colors = [];
-            let esPorcentaje = [];
-
-            // Primero los valores absolutos (densidad)
-            datosAbsolutos.forEach(d => {
-                labels.push(d.label);
-                values.push(d.value);
-                colors.push(d.color);
-                esPorcentaje.push(false);
-            });
-
-            // Luego los porcentajes
-            datosPorcentaje.forEach(d => {
-                labels.push(d.label);
-                values.push(d.value);
-                colors.push(d.color);
-                esPorcentaje.push(true);
-            });
-
+            const labels = datosGrafica.map(d => d.label);
+            const values = datosGrafica.map(d => d.value);
+            const colors = datosGrafica.map(d => d.color);
+            const esPorcentaje = datosGrafica.map(d => d.esPorcentaje);
+            const displayValues = datosGrafica.map(d => d.displayValue);
+        
             chartIndicadoresInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1393,13 +1391,7 @@
                             callbacks: {
                                 label: function(context) {
                                     const idx = context.dataIndex;
-                                    const esPct = esPorcentaje[idx];
-                                    const valor = context.parsed.x;
-                                    if (esPct) {
-                                        return valor.toFixed(1) + '%';
-                                    } else {
-                                        return valor.toLocaleString() + ' hab/km²';
-                                    }
+                                    return displayValues[idx] || context.parsed.x.toFixed(1);
                                 }
                             }
                         }
@@ -1409,15 +1401,12 @@
                             beginAtZero: true,
                             ticks: {
                                 font: { size: 8 },
-                                callback: function(value, index, ticks) {
-                                    // Mostrar el valor con formato según el tipo
-                                    const idx = index;
-                                    if (idx !== undefined && idx < esPorcentaje.length) {
-                                        if (esPorcentaje[idx]) {
-                                            return value + '%';
-                                        }
+                                callback: function(value) {
+                                    // Si el valor es mayor a 100, no mostrar como porcentaje
+                                    if (value > 100) {
+                                        return value.toLocaleString();
                                     }
-                                    return value;
+                                    return value + '%';
                                 }
                             }
                         },
