@@ -432,7 +432,7 @@
     <div class="loading" id="loading">
         <div class="spinner"></div>
         <div class="title" id="loading-title">Cargando datos...</div>
-        <div class="subtitle" id="loading-subtitle">Provincias, Distritos, Corregimientos, Lugares y Barrios</div>
+        <div class="subtitle" id="loading-subtitle">Provincias, Distritos, Corregimientos, Poblados y Barrios</div>
         <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
         <div id="loading-status"></div>
     </div>
@@ -492,11 +492,11 @@
             </select>
         </div>
 
-        <!-- SELECTOR 4: LUGAR POBLADO -->
-        <div class="selector-wrapper" id="wrapper-lugar" style="border-left-color:#fd7e14;display:none;">
-            <label>📍 Lugar Poblado:</label>
-            <select id="selector-lugar" onchange="cambiarLugar()">
-                <option value="">Seleccionar lugar poblado...</option>
+        <!-- SELECTOR 4: POBLADO -->
+        <div class="selector-wrapper" id="wrapper-poblado" style="border-left-color:#fd7e14;display:none;">
+            <label>📍 Poblado:</label>
+            <select id="selector-poblado" onchange="cambiarPoblado()">
+                <option value="">Seleccionar poblado...</option>
             </select>
         </div>
 
@@ -573,7 +573,7 @@
             provincias: null,
             distritos: null,
             corregimientos: null,
-            lugares: null,
+            poblados: null,
             barrios: null
         };
 
@@ -590,7 +590,7 @@
             provincia: null,
             distrito: null,
             corregimiento: null,
-            lugar: null,
+            poblado: null,
             barrio: null
         };
 
@@ -615,14 +615,14 @@
             'CORR_ID': 'Código de Corregimiento',
             'CORR_NOMB': 'Nombre de Corregimiento',
             'CORR_CODE': 'Código Corregimiento (6 dígitos)',
-            'LUPO_ID': 'Código de Lugar Poblado',
-            'LUPO_CODE': 'Código Lugar (6 dígitos)',
-            'LUPO_NOMB': 'Nombre de Lugar Poblado',
-            'LUPO_CATE': 'Categoría del Lugar',
-            'LUPO_TIPO': 'Tipo de Lugar',
+            'LUPO_ID': 'Código de Poblado',
+            'LUPO_CODE': 'Código Poblado (9 dígitos)',
+            'LUPO_NOMB': 'Nombre de Poblado',
+            'LUPO_CATE': 'Categoría del Poblado',
+            'LUPO_TIPO': 'Tipo de Poblado',
             'BARR_ID': 'Código de Barrio',
             'BARR_NOMB': 'Nombre de Barrio',
-            'BARR_CODE': 'Código Barrio (8 dígitos)',
+            'BARR_CODE': 'Código Barrio (12 dígitos)',
             'PROV_LEY': 'Ley de Creación Provincia',
             'LEY_MOD_P': 'Ley Modificatoria Provincia',
             'GACETA_P': 'Gaceta Oficial Provincia',
@@ -703,11 +703,12 @@
             loading.style.display = 'block';
             document.getElementById('progress-bar').style.width = '0%';
 
+            // Cargar todos los archivos con los nombres correctos
             await Promise.all([
                 cargarGeoJSON('provincias', 'provincias.geojson'),
                 cargarGeoJSON('distritos', 'distritos.geojson'),
                 cargarGeoJSON('corregimientos', 'corregimientos.geojson'),
-                cargarGeoJSON('lugares', 'lugares_poblados.geojson'),
+                cargarGeoJSON('poblados', 'poblados.geojson'),  // ← Nombre corregido
                 cargarGeoJSON('barrios', 'barrios.geojson')
             ]);
 
@@ -763,7 +764,7 @@
                 'provincias': 'Provincias',
                 'distritos': 'Distritos',
                 'corregimientos': 'Corregimientos',
-                'lugares': 'Lugares Poblados',
+                'poblados': 'Poblados',
                 'barrios': 'Barrios'
             };
             document.getElementById('badge-nivel').textContent = nombres[nivel] || nivel;
@@ -798,23 +799,23 @@
                 });
                 titulo = 'Corregimientos';
                 nivelActual = 'corregimientos';
-            } else if (nivel === 'lugares') {
-                if (!datos.lugares) { return; }
-                features = datos.lugares.features.filter(f => {
+            } else if (nivel === 'poblados') {
+                if (!datos.poblados) { return; }
+                features = datos.poblados.features.filter(f => {
                     const p = f.properties;
-                    const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
+                    const lupoCode = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
                     const corrCodeFormateado = formatearCodigo(filtroId, 6);
-                    return corrCode === corrCodeFormateado;
+                    return lupoCode.substring(0, 6) === corrCodeFormateado;
                 });
-                titulo = 'Lugares Poblados';
-                nivelActual = 'lugares';
+                titulo = 'Poblados';
+                nivelActual = 'poblados';
             } else if (nivel === 'barrios') {
                 if (!datos.barrios) { return; }
                 features = datos.barrios.features.filter(f => {
                     const p = f.properties;
-                    const lupoCode = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
-                    const lupoCodeFormateado = formatearCodigo(filtroId, 6);
-                    return lupoCode === lupoCodeFormateado;
+                    const barrioCode = p.BARR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID + p.BARR_ID);
+                    const lupoCodeFormateado = formatearCodigo(filtroId, 9);
+                    return barrioCode.substring(0, 9) === lupoCodeFormateado;
                 });
                 titulo = 'Barrios';
                 nivelActual = 'barrios';
@@ -884,12 +885,12 @@
                                     break;
                                 }
                             }
-                        } else if (nivel === 'lugares') {
-                            const select = document.getElementById('selector-lugar');
+                        } else if (nivel === 'poblados') {
+                            const select = document.getElementById('selector-poblado');
                             for (let i = 0; i < select.options.length; i++) {
                                 if (select.options[i].textContent === nombre) {
                                     select.selectedIndex = i;
-                                    cambiarLugar();
+                                    cambiarPoblado();
                                     break;
                                 }
                             }
@@ -962,7 +963,6 @@
             const select = document.getElementById('selector-provincia');
             const value = select.value;
             
-            // Resetear todos los selectores hijos
             resetearSelectoresHijos();
             
             if (!value) {
@@ -977,7 +977,7 @@
                 seleccion.provincia = null;
                 seleccion.distrito = null;
                 seleccion.corregimiento = null;
-                seleccion.lugar = null;
+                seleccion.poblado = null;
                 seleccion.barrio = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
@@ -989,7 +989,7 @@
             seleccion.provincia = props;
             seleccion.distrito = null;
             seleccion.corregimiento = null;
-            seleccion.lugar = null;
+            seleccion.poblado = null;
             seleccion.barrio = null;
             
             mostrarDatosTabla(props, 'Provincia');
@@ -1014,8 +1014,8 @@
         // 8. RESETEAR SELECTORES HIJOS
         // ================================================================
         function resetearSelectoresHijos() {
-            const ids = ['distrito', 'corregimiento', 'lugar', 'barrio'];
-            const wrappers = ['wrapper-distrito', 'wrapper-corregimiento', 'wrapper-lugar', 'wrapper-barrio'];
+            const ids = ['distrito', 'corregimiento', 'poblado', 'barrio'];
+            const wrappers = ['wrapper-distrito', 'wrapper-corregimiento', 'wrapper-poblado', 'wrapper-barrio'];
             
             ids.forEach(id => {
                 const select = document.getElementById('selector-' + id);
@@ -1087,9 +1087,8 @@
             const select = document.getElementById('selector-distrito');
             const value = select.value;
             
-            // Resetear selectores hijos
-            const ids = ['corregimiento', 'lugar', 'barrio'];
-            const wrappers = ['wrapper-corregimiento', 'wrapper-lugar', 'wrapper-barrio'];
+            const ids = ['corregimiento', 'poblado', 'barrio'];
+            const wrappers = ['wrapper-corregimiento', 'wrapper-poblado', 'wrapper-barrio'];
             
             ids.forEach(id => {
                 const sel = document.getElementById('selector-' + id);
@@ -1109,7 +1108,7 @@
                 }
                 seleccion.distrito = null;
                 seleccion.corregimiento = null;
-                seleccion.lugar = null;
+                seleccion.poblado = null;
                 seleccion.barrio = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
@@ -1119,7 +1118,7 @@
             const props = feature.properties;
             seleccion.distrito = props;
             seleccion.corregimiento = null;
-            seleccion.lugar = null;
+            seleccion.poblado = null;
             seleccion.barrio = null;
             
             mostrarDatosTabla(props, 'Distrito');
@@ -1141,7 +1140,7 @@
         }
 
         // ================================================================
-        // 11. CARGAR CORREGIMIENTOS (sin cambios)
+        // 11. CARGAR CORREGIMIENTOS
         // ================================================================
         function cargarCorregimientos(distCode) {
             const selectCorr = document.getElementById('selector-corregimiento');
@@ -1154,14 +1153,14 @@
                 const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
                 return corrCode.substring(0, 4) === distCodeFormateado;
             });
-        
+
             if (corregimientos.length === 0) {
                 selectCorr.innerHTML = '<option value="">No hay corregimientos disponibles</option>';
                 selectCorr.disabled = true;
                 wrapperCorr.style.display = 'block';
                 return;
             }
-        
+
             selectCorr.innerHTML = '<option value="">Seleccionar corregimiento...</option>';
             
             corregimientos.sort((a, b) => {
@@ -1180,10 +1179,10 @@
                 option.dataset.feature = JSON.stringify(f);
                 selectCorr.appendChild(option);
             });
-        
+
             selectCorr.disabled = false;
             wrapperCorr.style.display = 'block';
-        
+
             mostrarNivel('corregimientos', distCodeFormateado);
             
             if (corregimientos.length === 1) {
@@ -1191,7 +1190,7 @@
                 cambiarCorregimiento();
             }
         }
-        
+
         // ================================================================
         // 12. CAMBIAR CORREGIMIENTO
         // ================================================================
@@ -1199,9 +1198,8 @@
             const select = document.getElementById('selector-corregimiento');
             const value = select.value;
             
-            // Resetear selectores hijos (lugar, barrio)
-            const ids = ['lugar', 'barrio'];
-            const wrappers = ['wrapper-lugar', 'wrapper-barrio'];
+            const ids = ['poblado', 'barrio'];
+            const wrappers = ['wrapper-poblado', 'wrapper-barrio'];
             
             ids.forEach(id => {
                 const sel = document.getElementById('selector-' + id);
@@ -1223,16 +1221,16 @@
                     mostrarNivel('corregimientos', distCodeFormateado);
                 }
                 seleccion.corregimiento = null;
-                seleccion.lugar = null;
+                seleccion.poblado = null;
                 seleccion.barrio = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
-        
+
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             seleccion.corregimiento = props;
-            seleccion.lugar = null;
+            seleccion.poblado = null;
             seleccion.barrio = null;
             
             mostrarDatosTabla(props, 'Corregimiento');
@@ -1247,49 +1245,53 @@
                     dashArray: '6, 4'
                 }
             }).addTo(map);
-        
-            if (datos.lugares) {
-                cargarLugares(value);
+
+            if (datos.poblados) {
+                cargarPoblados(value);
             }
         }
-        
+
         // ================================================================
-        // 13. CARGAR LUGARES POBLADOS (CORREGIDO)
+        // 13. CARGAR POBLADOS
         // ================================================================
-        function cargarLugares(corrCode) {
-            const selectLugar = document.getElementById('selector-lugar');
-            const wrapperLugar = document.getElementById('wrapper-lugar');
+        function cargarPoblados(corrCode) {
+            const selectPoblado = document.getElementById('selector-poblado');
+            const wrapperPoblado = document.getElementById('wrapper-poblado');
             
-            // CORR_CODE tiene 6 dígitos: PROV_ID + DIST_ID + CORR_ID
             const corrCodeFormateado = formatearCodigo(corrCode, 6);
             
-            // LUPO_CODE tiene 9 dígitos: PROV_ID + DIST_ID + CORR_ID + LUPO_ID
-            // Para filtrar, comparamos los primeros 6 dígitos de LUPO_CODE con CORR_CODE
-            const lugares = datos.lugares.features.filter(f => {
-                const p = f.properties;
-                const lupoCode = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
-                // Comparar los primeros 6 dígitos (PROV_ID + DIST_ID + CORR_ID)
-                return lupoCode.substring(0, 6) === corrCodeFormateado;
-            });
-        
-            console.log(`Lugares para corregimiento ${corrCodeFormateado}: ${lugares.length}`);
-        
-            if (lugares.length === 0) {
-                selectLugar.innerHTML = '<option value="">No hay lugares poblados disponibles</option>';
-                selectLugar.disabled = true;
-                wrapperLugar.style.display = 'block';
+            // Si no hay datos de poblados, mostrar mensaje
+            if (!datos.poblados) {
+                selectPoblado.innerHTML = '<option value="">No hay poblados disponibles</option>';
+                selectPoblado.disabled = true;
+                wrapperPoblado.style.display = 'block';
                 return;
             }
-        
-            selectLugar.innerHTML = '<option value="">Seleccionar lugar poblado...</option>';
             
-            lugares.sort((a, b) => {
+            const poblados = datos.poblados.features.filter(f => {
+                const p = f.properties;
+                const lupoCode = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
+                return lupoCode.substring(0, 6) === corrCodeFormateado;
+            });
+
+            console.log(`Poblados para corregimiento ${corrCodeFormateado}: ${poblados.length}`);
+
+            if (poblados.length === 0) {
+                selectPoblado.innerHTML = '<option value="">No hay poblados disponibles</option>';
+                selectPoblado.disabled = true;
+                wrapperPoblado.style.display = 'block';
+                return;
+            }
+
+            selectPoblado.innerHTML = '<option value="">Seleccionar poblado...</option>';
+            
+            poblados.sort((a, b) => {
                 const nomA = a.properties.LUPO_NOMB || '';
                 const nomB = b.properties.LUPO_NOMB || '';
                 return nomA.localeCompare(nomB);
             });
             
-            lugares.forEach(f => {
+            poblados.forEach(f => {
                 const nombre = f.properties.LUPO_NOMB || 'Sin nombre';
                 const lupoCode = f.properties.LUPO_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID);
                 const id = formatearCodigo(lupoCode, 9);
@@ -1297,28 +1299,27 @@
                 option.value = id;
                 option.textContent = nombre;
                 option.dataset.feature = JSON.stringify(f);
-                selectLugar.appendChild(option);
+                selectPoblado.appendChild(option);
             });
-        
-            selectLugar.disabled = false;
-            wrapperLugar.style.display = 'block';
-        
-            mostrarNivel('lugares', corrCodeFormateado);
+
+            selectPoblado.disabled = false;
+            wrapperPoblado.style.display = 'block';
+
+            mostrarNivel('poblados', corrCodeFormateado);
             
-            if (lugares.length === 1) {
-                selectLugar.selectedIndex = 1;
-                cambiarLugar();
+            if (poblados.length === 1) {
+                selectPoblado.selectedIndex = 1;
+                cambiarPoblado();
             }
         }
-        
+
         // ================================================================
-        // 14. CAMBIAR LUGAR POBLADO (CORREGIDO)
+        // 14. CAMBIAR POBLADO
         // ================================================================
-        function cambiarLugar() {
-            const select = document.getElementById('selector-lugar');
+        function cambiarPoblado() {
+            const select = document.getElementById('selector-poblado');
             const value = select.value;
             
-            // Resetear selector de barrio
             const selectBarrio = document.getElementById('selector-barrio');
             const wrapperBarrio = document.getElementById('wrapper-barrio');
             selectBarrio.innerHTML = '<option value="">Seleccionar barrio...</option>';
@@ -1330,20 +1331,20 @@
                     const corrCode = seleccion.corregimiento.CORR_CODE || 
                                     (seleccion.corregimiento.PROV_ID + seleccion.corregimiento.DIST_ID + seleccion.corregimiento.CORR_ID);
                     const corrCodeFormateado = formatearCodigo(corrCode, 6);
-                    mostrarNivel('lugares', corrCodeFormateado);
+                    mostrarNivel('poblados', corrCodeFormateado);
                 }
-                seleccion.lugar = null;
+                seleccion.poblado = null;
                 seleccion.barrio = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
-        
+
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
-            seleccion.lugar = props;
+            seleccion.poblado = props;
             seleccion.barrio = null;
             
-            mostrarDatosTabla(props, 'Lugar Poblado');
+            mostrarDatosTabla(props, 'Poblado');
             
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             capaResaltado = L.geoJSON(feature, {
@@ -1355,40 +1356,36 @@
                     dashArray: '6, 4'
                 }
             }).addTo(map);
-        
+
             if (datos.barrios) {
                 cargarBarrios(value);
             }
         }
-        
+
         // ================================================================
-        // 15. CARGAR BARRIOS (CORREGIDO)
+        // 15. CARGAR BARRIOS
         // ================================================================
         function cargarBarrios(lupoCode) {
             const selectBarrio = document.getElementById('selector-barrio');
             const wrapperBarrio = document.getElementById('wrapper-barrio');
             
-            // LUPO_CODE tiene 9 dígitos: PROV_ID + DIST_ID + CORR_ID + LUPO_ID
             const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
             
-            // BARR_CODE tiene 12 dígitos: PROV_ID + DIST_ID + CORR_ID + LUPO_ID + BARR_ID
-            // Para filtrar, comparamos los primeros 9 dígitos de BARR_CODE con LUPO_CODE
             const barrios = datos.barrios.features.filter(f => {
                 const p = f.properties;
                 const barrioCode = p.BARR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID + p.BARR_ID);
-                // Comparar los primeros 9 dígitos (PROV_ID + DIST_ID + CORR_ID + LUPO_ID)
                 return barrioCode.substring(0, 9) === lupoCodeFormateado;
             });
-        
-            console.log(`Barrios para lugar ${lupoCodeFormateado}: ${barrios.length}`);
-        
+
+            console.log(`Barrios para poblado ${lupoCodeFormateado}: ${barrios.length}`);
+
             if (barrios.length === 0) {
                 selectBarrio.innerHTML = '<option value="">No hay barrios disponibles</option>';
                 selectBarrio.disabled = true;
                 wrapperBarrio.style.display = 'block';
                 return;
             }
-        
+
             selectBarrio.innerHTML = '<option value="">Seleccionar barrio...</option>';
             
             barrios.sort((a, b) => {
@@ -1407,10 +1404,10 @@
                 option.dataset.feature = JSON.stringify(f);
                 selectBarrio.appendChild(option);
             });
-        
+
             selectBarrio.disabled = false;
             wrapperBarrio.style.display = 'block';
-        
+
             mostrarNivel('barrios', lupoCodeFormateado);
             
             if (barrios.length === 1) {
@@ -1418,7 +1415,7 @@
                 cambiarBarrio();
             }
         }
-        
+
         // ================================================================
         // 16. CAMBIAR BARRIO
         // ================================================================
@@ -1427,9 +1424,9 @@
             const value = select.value;
             
             if (!value) {
-                if (seleccion.lugar) {
-                    const lupoCode = seleccion.lugar.LUPO_CODE || 
-                                    (seleccion.lugar.PROV_ID + seleccion.lugar.DIST_ID + seleccion.lugar.CORR_ID + seleccion.lugar.LUPO_ID);
+                if (seleccion.poblado) {
+                    const lupoCode = seleccion.poblado.LUPO_CODE || 
+                                    (seleccion.poblado.PROV_ID + seleccion.poblado.DIST_ID + seleccion.poblado.CORR_ID + seleccion.poblado.LUPO_ID);
                     const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
                     mostrarNivel('barrios', lupoCodeFormateado);
                 }
@@ -1437,7 +1434,7 @@
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
-        
+
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             seleccion.barrio = props;
@@ -1460,7 +1457,7 @@
         // 17. VOLVER NIVEL JERÁRQUICO
         // ================================================================
         function volverNivel() {
-            const niveles = ['provincias', 'distritos', 'corregimientos', 'lugares', 'barrios'];
+            const niveles = ['provincias', 'distritos', 'corregimientos', 'poblados', 'barrios'];
             const idx = niveles.indexOf(nivelActual);
             
             if (idx <= 0) return;
@@ -1473,23 +1470,23 @@
                 document.getElementById('wrapper-barrio').style.display = 'none';
                 seleccion.barrio = null;
                 
-                if (seleccion.lugar) {
-                    const lupoCode = seleccion.lugar.LUPO_CODE || 
-                                    (seleccion.lugar.PROV_ID + seleccion.lugar.DIST_ID + seleccion.lugar.CORR_ID + seleccion.lugar.LUPO_ID);
-                    const lupoCodeFormateado = formatearCodigo(lupoCode, 6);
-                    mostrarNivel('lugares', lupoCodeFormateado);
-                    document.getElementById('selector-lugar').disabled = false;
-                    document.getElementById('wrapper-lugar').style.display = 'block';
+                if (seleccion.poblado) {
+                    const lupoCode = seleccion.poblado.LUPO_CODE || 
+                                    (seleccion.poblado.PROV_ID + seleccion.poblado.DIST_ID + seleccion.poblado.CORR_ID + seleccion.poblado.LUPO_ID);
+                    const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
+                    mostrarNivel('poblados', lupoCodeFormateado);
+                    document.getElementById('selector-poblado').disabled = false;
+                    document.getElementById('wrapper-poblado').style.display = 'block';
                 }
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
             
-            if (nivelActual === 'lugares') {
-                document.getElementById('selector-lugar').selectedIndex = 0;
-                document.getElementById('selector-lugar').disabled = true;
-                document.getElementById('wrapper-lugar').style.display = 'none';
-                seleccion.lugar = null;
+            if (nivelActual === 'poblados') {
+                document.getElementById('selector-poblado').selectedIndex = 0;
+                document.getElementById('selector-poblado').disabled = true;
+                document.getElementById('wrapper-poblado').style.display = 'none';
+                seleccion.poblado = null;
                 
                 if (seleccion.corregimiento) {
                     const corrCode = seleccion.corregimiento.CORR_CODE || 
@@ -1543,14 +1540,13 @@
         }
 
         // ================================================================
-        // 18. MOSTRAR DATOS EN TABLA CON TARJETA DE DENSIDAD
+        // 18. MOSTRAR DATOS EN TABLA
         // ================================================================
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
             propsActuales = props;
             tituloActual = titulo;
             
-            // Determinar el nombre correcto según el nivel
             let nombre = '';
             if (titulo === 'Provincia') {
                 nombre = props.PROV_NOMB || 'Sin nombre';
@@ -1558,7 +1554,7 @@
                 nombre = props.DIST_NOMB || 'Sin nombre';
             } else if (titulo === 'Corregimiento') {
                 nombre = props.CORR_NOMB || 'Sin nombre';
-            } else if (titulo === 'Lugar Poblado') {
+            } else if (titulo === 'Poblado') {
                 nombre = props.LUPO_NOMB || 'Sin nombre';
             } else if (titulo === 'Barrio') {
                 nombre = props.BARR_NOMB || 'Sin nombre';
@@ -1567,7 +1563,6 @@
                         props.LUPO_NOMB || props.BARR_NOMB || 'Sin nombre';
             }
             
-            // Campos que deben tener formato de código
             const camposCodigo = ['PROV_ID', 'DIST_ID', 'CORR_ID', 'LUPO_ID', 'BARR_ID', 
                                  'DIST_CODE', 'CORR_CODE', 'LUPO_CODE', 'BARR_CODE'];
             
@@ -1592,7 +1587,6 @@
 
             let html = `<h4>📋 ${titulo}: ${nombre}`;
             
-            // Mostrar botón de gráfica si hay datos suficientes
             const poblacion = parseFloat(props.N_PERSONAS) || 0;
             const viviendas = parseFloat(props.N_VIVIENDA) || 0;
             const area = parseFloat(props.AREA) || 1;
@@ -1607,7 +1601,6 @@
             }
             html += `</h4>`;
             
-            // Tarjeta de densidad (si hay datos)
             if (densidad > 0) {
                 html += `<div class="densidad-card">
                     <span class="label">🏙️ Densidad poblacional</span>
@@ -1628,8 +1621,9 @@
                     if (camposCodigo.includes(campo)) {
                         let longitud = 2;
                         if (campo === 'DIST_CODE') longitud = 4;
-                        if (campo === 'CORR_CODE' || campo === 'LUPO_CODE') longitud = 6;
-                        if (campo === 'BARR_CODE') longitud = 8;
+                        if (campo === 'CORR_CODE') longitud = 6;
+                        if (campo === 'LUPO_CODE') longitud = 9;
+                        if (campo === 'BARR_CODE') longitud = 12;
                         valor = formatearCodigo(valor, longitud);
                     } else if (campo === 'PERIMETRO') {
                         const num = parseFloat(valor);
@@ -1687,7 +1681,7 @@
                 nombre = propsActuales.DIST_NOMB || 'Sin nombre';
             } else if (tituloActual === 'Corregimiento') {
                 nombre = propsActuales.CORR_NOMB || 'Sin nombre';
-            } else if (tituloActual === 'Lugar Poblado') {
+            } else if (tituloActual === 'Poblado') {
                 nombre = propsActuales.LUPO_NOMB || 'Sin nombre';
             } else if (tituloActual === 'Barrio') {
                 nombre = propsActuales.BARR_NOMB || 'Sin nombre';
@@ -1696,7 +1690,6 @@
             titulo.textContent = `📊 Indicadores Socioeconómicos - ${nombre}`;
             subtitulo.textContent = `${tituloActual}: ${nombre}`;
             
-            // Calcular densidad para el modal
             const area = parseFloat(propsActuales.AREA) || 1;
             const poblacion = parseFloat(propsActuales.N_PERSONAS) || 0;
             const areaKm2 = area / 1000000;
@@ -1722,7 +1715,7 @@
         }
 
         // ================================================================
-        // 20. CREAR GRÁFICA EN MODAL (SOLO PORCENTAJES)
+        // 20. CREAR GRÁFICA EN MODAL
         // ================================================================
         function crearGraficaModal(props) {
             const canvas = document.getElementById('modal-chart');
@@ -1752,7 +1745,6 @@
 
             const datosGrafica = [];
 
-            // Solo porcentajes (sin densidad)
             if (pctOcupacion > 0) {
                 datosGrafica.push({
                     label: 'Viviendas ocupadas',
@@ -1843,7 +1835,6 @@
                 return;
             }
 
-            // Ordenar de mayor a menor
             datosGrafica.sort((a, b) => b.value - a.value);
 
             const ctx = canvas.getContext('2d');
@@ -1928,8 +1919,8 @@
             
             if (seleccion.barrio) {
                 props = seleccion.barrio;
-            } else if (seleccion.lugar) {
-                props = seleccion.lugar;
+            } else if (seleccion.poblado) {
+                props = seleccion.poblado;
             } else if (seleccion.corregimiento) {
                 props = seleccion.corregimiento;
             } else if (seleccion.distrito) {
@@ -1950,10 +1941,12 @@
                     val = formatearCodigo(val, 2);
                 } else if (h === 'DIST_CODE') {
                     val = formatearCodigo(val, 4);
-                } else if (h === 'CORR_CODE' || h === 'LUPO_CODE') {
+                } else if (h === 'CORR_CODE') {
                     val = formatearCodigo(val, 6);
+                } else if (h === 'LUPO_CODE') {
+                    val = formatearCodigo(val, 9);
                 } else if (h === 'BARR_CODE') {
-                    val = formatearCodigo(val, 8);
+                    val = formatearCodigo(val, 12);
                 } else if (h === 'PERIMETRO' && !isNaN(parseFloat(val))) {
                     val = (parseFloat(val) / 1000).toFixed(2);
                 } else if (h === 'AREA' && !isNaN(parseFloat(val))) {
@@ -1998,7 +1991,7 @@
             seleccion.provincia = null;
             seleccion.distrito = null;
             seleccion.corregimiento = null;
-            seleccion.lugar = null;
+            seleccion.poblado = null;
             seleccion.barrio = null;
             
             if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
@@ -2024,7 +2017,7 @@
         window.cambiarProvincia = cambiarProvincia;
         window.cambiarDistrito = cambiarDistrito;
         window.cambiarCorregimiento = cambiarCorregimiento;
-        window.cambiarLugar = cambiarLugar;
+        window.cambiarPoblado = cambiarPoblado;
         window.cambiarBarrio = cambiarBarrio;
         window.volverNivel = volverNivel;
         window.exportarGeoJSON = exportarGeoJSON;
