@@ -162,6 +162,14 @@
             align-items: center;
             gap: 6px;
         }
+        .info-panel h4 .nivel-tag {
+            font-size: 8px;
+            background: #2c6b9e;
+            color: white;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-weight: 400;
+        }
         .info-panel table {
             width: 100%;
             border-collapse: collapse;
@@ -371,7 +379,6 @@
         // ================================================================
         function formatearCodigo(valor, longitud) {
             if (valor === undefined || valor === null || valor === '') return '';
-            // Convertir a string y rellenar con ceros a la izquierda
             return String(valor).padStart(longitud, '0');
         }
 
@@ -607,7 +614,6 @@
                 features = datos.corregimientos.features.filter(f => {
                     const p = f.properties;
                     const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
-                    // Formatear a 4 dígitos para comparar
                     const distCodeFormateado = formatearCodigo(filtroId, 4);
                     return corrCode.substring(0, 4) === distCodeFormateado;
                 });
@@ -821,7 +827,6 @@
             
             distritos.forEach(f => {
                 const nombre = f.properties.DIST_NOMB || 'Sin nombre';
-                // Formatear DIST_CODE a 4 dígitos
                 const distCode = f.properties.DIST_CODE || (f.properties.PROV_ID + f.properties.DIST_ID);
                 const id = formatearCodigo(distCode, 4);
                 const option = document.createElement('option');
@@ -1015,7 +1020,17 @@
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
             
-            const nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 'Sin nombre';
+            // Determinar el nombre correcto según el nivel
+            let nombre = '';
+            if (titulo === 'Provincia') {
+                nombre = props.PROV_NOMB || 'Sin nombre';
+            } else if (titulo === 'Distrito') {
+                nombre = props.DIST_NOMB || 'Sin nombre';
+            } else if (titulo === 'Corregimiento') {
+                nombre = props.CORR_NOMB || 'Sin nombre';
+            } else {
+                nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 'Sin nombre';
+            }
             
             // Campos que deben tener formato de código
             const camposCodigo = ['PROV_ID', 'DIST_ID', 'CORR_ID', 'DIST_CODE', 'CORR_CODE'];
@@ -1117,7 +1132,6 @@
             const headers = Object.keys(props);
             const values = headers.map(h => {
                 let val = props[h];
-                // Formatear códigos en la exportación
                 if (['PROV_ID', 'DIST_ID', 'CORR_ID'].includes(h)) {
                     val = formatearCodigo(val, 2);
                 } else if (h === 'DIST_CODE') {
