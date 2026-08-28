@@ -1725,107 +1725,305 @@
                 chartModalInstance.destroy();
                 chartModalInstance = null;
             }
-
+        
+            // ================================================================
+            // 1. EXTRAER DATOS - TODOS COMO NÚMEROS
+            // ================================================================
             const poblacion = parseFloat(props.N_PERSONAS) || 0;
             const viviendas = parseFloat(props.N_VIVIENDA) || 0;
             const ocupadas = parseFloat(props.TOTA_VIV_P) || 0;
             const hombres = parseFloat(props.P_HOMBRES) || 0;
             const mujeres = parseFloat(props.P_MUJERES) || 0;
+            const mayores18 = parseFloat(props.MAYOR_18) || 0;
             const desocupados = parseFloat(props.DESOCUP) || 0;
             const analfabetas = parseFloat(props.ANALFAB) || 0;
+            const conDisc = parseFloat(props.CON_DISC) || 0;
+            const menosPrim = parseFloat(props.MENOS_PRIM) || 0;
+            
+            // Viviendas por tipo
+            const vIndiv = parseFloat(props.V_INDIV) || 0;
+            const vApartam = parseFloat(props.V_APARTAM) || 0;
+            const vImprovisada = parseFloat(props.V_IMPROV) || 0;
+            const vCuartos = parseFloat(props.V_CUARTOS) || 0;
+            
+            // Servicios básicos (ya son porcentajes)
             const sinAgua = parseFloat(props.SIN_AGUA) || 0;
             const sinLuz = parseFloat(props.SIN_LUZ) || 0;
             const sinInternet = parseFloat(props.SIN_INTERN) || 0;
-
+            const sinServSan = parseFloat(props.SIN_SER_SA) || 0;
+            const pisoTierra = parseFloat(props.CON_PISO_T) || 0;
+            const cocinaLeña = parseFloat(props.COC_LEÑA) || 0;
+            const sinTV = parseFloat(props.SIN_TV) || 0;
+            const sinRadio = parseFloat(props.SIN_RADIO) || 0;
+            const sinTelFijo = parseFloat(props.SIN_TEL_RE) || 0;
+            const sinCelular = parseFloat(props.SIN_TEL_CE) || 0;
+        
+            // ================================================================
+            // 2. CALCULAR INDICADORES
+            // ================================================================
+            
+            // VIVIENDA
             const pctOcupacion = viviendas > 0 ? (ocupadas / viviendas) * 100 : 0;
             const pctDesocupacion = viviendas > 0 ? ((viviendas - ocupadas) / viviendas) * 100 : 0;
+            const pctViviendaIndividual = viviendas > 0 ? (vIndiv / viviendas) * 100 : 0;
+            const pctApartamento = viviendas > 0 ? (vApartam / viviendas) * 100 : 0;
+            const pctViviendaImprovisada = viviendas > 0 ? (vImprovisada / viviendas) * 100 : 0;
+            
+            // DEMOGRAFÍA
             const pctHombres = poblacion > 0 ? (hombres / poblacion) * 100 : 0;
             const pctMujeres = poblacion > 0 ? (mujeres / poblacion) * 100 : 0;
+            const pctMayores18 = poblacion > 0 ? (mayores18 / poblacion) * 100 : 0;
+            const pctMenores18 = poblacion > 0 ? ((poblacion - mayores18) / poblacion) * 100 : 0;
+            const personasPorVivienda = viviendas > 0 ? poblacion / viviendas : 0;
+            
+            // SOCIAL
             const pctDesocupados = poblacion > 0 ? (desocupados / poblacion) * 100 : 0;
-
+            const pctAnalfabetas = poblacion > 0 ? (analfabetas / poblacion) * 100 : 0;
+            const pctMenosPrim = poblacion > 0 ? (menosPrim / poblacion) * 100 : 0;
+            const pctDiscapacidad = poblacion > 0 ? (conDisc / poblacion) * 100 : 0;
+        
+            // ================================================================
+            // 3. CONSTRUIR DATOS PARA GRÁFICA
+            // ================================================================
             const datosGrafica = [];
-
+        
+            // === VIVIENDA ===
             if (pctOcupacion > 0) {
                 datosGrafica.push({
                     label: 'Viviendas ocupadas',
                     value: pctOcupacion,
                     color: '#28a745',
-                    displayValue: pctOcupacion.toFixed(1) + '%'
+                    displayValue: pctOcupacion.toFixed(1) + '%',
+                    grupo: 'Vivienda'
                 });
             }
-
+        
             if (pctDesocupacion > 0) {
                 datosGrafica.push({
                     label: 'Viviendas desocupadas',
                     value: pctDesocupacion,
                     color: '#dc3545',
-                    displayValue: pctDesocupacion.toFixed(1) + '%'
+                    displayValue: pctDesocupacion.toFixed(1) + '%',
+                    grupo: 'Vivienda'
                 });
             }
-
+        
+            if (pctViviendaIndividual > 0 && pctViviendaIndividual < 100) {
+                datosGrafica.push({
+                    label: 'Viviendas individuales',
+                    value: pctViviendaIndividual,
+                    color: '#17a2b8',
+                    displayValue: pctViviendaIndividual.toFixed(1) + '%',
+                    grupo: 'Vivienda'
+                });
+            }
+        
+            if (pctApartamento > 0 && pctApartamento < 100) {
+                datosGrafica.push({
+                    label: 'Apartamentos',
+                    value: pctApartamento,
+                    color: '#6f42c1',
+                    displayValue: pctApartamento.toFixed(1) + '%',
+                    grupo: 'Vivienda'
+                });
+            }
+        
+            if (pctViviendaImprovisada > 0 && pctViviendaImprovisada < 100) {
+                datosGrafica.push({
+                    label: 'Viviendas improvisadas',
+                    value: pctViviendaImprovisada,
+                    color: '#fd7e14',
+                    displayValue: pctViviendaImprovisada.toFixed(1) + '%',
+                    grupo: 'Vivienda'
+                });
+            }
+        
+            // === DEMOGRAFÍA ===
             if (pctHombres > 0) {
                 datosGrafica.push({
                     label: 'Hombres',
                     value: pctHombres,
                     color: '#17a2b8',
-                    displayValue: pctHombres.toFixed(1) + '%'
+                    displayValue: pctHombres.toFixed(1) + '%',
+                    grupo: 'Demografía'
                 });
             }
-
+        
             if (pctMujeres > 0) {
                 datosGrafica.push({
                     label: 'Mujeres',
                     value: pctMujeres,
                     color: '#e83e8c',
-                    displayValue: pctMujeres.toFixed(1) + '%'
+                    displayValue: pctMujeres.toFixed(1) + '%',
+                    grupo: 'Demografía'
                 });
             }
-
-            if (analfabetas > 0 && analfabetas <= 100) {
+        
+            if (pctMayores18 > 0 && pctMayores18 < 100) {
+                datosGrafica.push({
+                    label: 'Mayores de 18 años',
+                    value: pctMayores18,
+                    color: '#2c6b9e',
+                    displayValue: pctMayores18.toFixed(1) + '%',
+                    grupo: 'Demografía'
+                });
+            }
+        
+            if (pctMenores18 > 0 && pctMenores18 < 100) {
+                datosGrafica.push({
+                    label: 'Menores de 18 años',
+                    value: pctMenores18,
+                    color: '#fd7e14',
+                    displayValue: pctMenores18.toFixed(1) + '%',
+                    grupo: 'Demografía'
+                });
+            }
+        
+            // === INDICADORES SOCIALES ===
+            if (pctAnalfabetas > 0 && pctAnalfabetas < 100) {
                 datosGrafica.push({
                     label: 'Analfabetismo',
-                    value: analfabetas,
-                    color: '#fd7e14',
-                    displayValue: analfabetas.toFixed(1) + '%'
+                    value: pctAnalfabetas,
+                    color: '#dc3545',
+                    displayValue: pctAnalfabetas.toFixed(1) + '%',
+                    grupo: 'Social'
                 });
             }
-
-            if (pctDesocupados > 0 && pctDesocupados <= 100) {
+        
+            if (pctMenosPrim > 0 && pctMenosPrim < 100) {
                 datosGrafica.push({
-                    label: 'Desocupación laboral',
+                    label: 'Menos de 3er grado',
+                    value: pctMenosPrim,
+                    color: '#fd7e14',
+                    displayValue: pctMenosPrim.toFixed(1) + '%',
+                    grupo: 'Social'
+                });
+            }
+        
+            if (pctDesocupados > 0 && pctDesocupados < 100) {
+                datosGrafica.push({
+                    label: 'Desocupación',
                     value: pctDesocupados,
                     color: '#dc3545',
-                    displayValue: pctDesocupados.toFixed(1) + '%'
+                    displayValue: pctDesocupados.toFixed(1) + '%',
+                    grupo: 'Social'
                 });
             }
-
-            if (sinAgua > 0 && sinAgua <= 100) {
+        
+            if (pctDiscapacidad > 0 && pctDiscapacidad < 100) {
+                datosGrafica.push({
+                    label: 'Con discapacidad',
+                    value: pctDiscapacidad,
+                    color: '#6f42c1',
+                    displayValue: pctDiscapacidad.toFixed(1) + '%',
+                    grupo: 'Social'
+                });
+            }
+        
+            // === SERVICIOS BÁSICOS ===
+            if (sinAgua > 0 && sinAgua < 100) {
                 datosGrafica.push({
                     label: 'Sin agua potable',
                     value: sinAgua,
                     color: '#17a2b8',
-                    displayValue: sinAgua.toFixed(1) + '%'
+                    displayValue: sinAgua.toFixed(1) + '%',
+                    grupo: 'Servicios'
                 });
             }
-
-            if (sinLuz > 0 && sinLuz <= 100) {
+        
+            if (sinLuz > 0 && sinLuz < 100) {
                 datosGrafica.push({
                     label: 'Sin luz eléctrica',
                     value: sinLuz,
                     color: '#ffc107',
-                    displayValue: sinLuz.toFixed(1) + '%'
+                    displayValue: sinLuz.toFixed(1) + '%',
+                    grupo: 'Servicios'
                 });
             }
-
-            if (sinInternet > 0 && sinInternet <= 100) {
+        
+            if (sinInternet > 0 && sinInternet < 100) {
                 datosGrafica.push({
                     label: 'Sin internet',
                     value: sinInternet,
                     color: '#6f42c1',
-                    displayValue: sinInternet.toFixed(1) + '%'
+                    displayValue: sinInternet.toFixed(1) + '%',
+                    grupo: 'Servicios'
                 });
             }
-
+        
+            if (sinServSan > 0 && sinServSan < 100) {
+                datosGrafica.push({
+                    label: 'Sin servicio sanitario',
+                    value: sinServSan,
+                    color: '#20c997',
+                    displayValue: sinServSan.toFixed(1) + '%',
+                    grupo: 'Servicios'
+                });
+            }
+        
+            if (pisoTierra > 0 && pisoTierra < 100) {
+                datosGrafica.push({
+                    label: 'Piso de tierra',
+                    value: pisoTierra,
+                    color: '#8B4513',
+                    displayValue: pisoTierra.toFixed(1) + '%',
+                    grupo: 'Servicios'
+                });
+            }
+        
+            if (cocinaLeña > 0 && cocinaLeña < 100) {
+                datosGrafica.push({
+                    label: 'Cocinan con leña',
+                    value: cocinaLeña,
+                    color: '#d63384',
+                    displayValue: cocinaLeña.toFixed(1) + '%',
+                    grupo: 'Servicios'
+                });
+            }
+        
+            if (sinTV > 0 && sinTV < 100) {
+                datosGrafica.push({
+                    label: 'Sin televisor',
+                    value: sinTV,
+                    color: '#6c757d',
+                    displayValue: sinTV.toFixed(1) + '%',
+                    grupo: 'Servicios'
+                });
+            }
+        
+            if (sinRadio > 0 && sinRadio < 100) {
+                datosGrafica.push({
+                    label: 'Sin radio',
+                    value: sinRadio,
+                    color: '#adb5bd',
+                    displayValue: sinRadio.toFixed(1) + '%',
+                    grupo: 'Servicios'
+                });
+            }
+        
+            if (sinTelFijo > 0 && sinTelFijo < 100) {
+                datosGrafica.push({
+                    label: 'Sin teléfono fijo',
+                    value: sinTelFijo,
+                    color: '#495057',
+                    displayValue: sinTelFijo.toFixed(1) + '%',
+                    grupo: 'Servicios'
+                });
+            }
+        
+            if (sinCelular > 0 && sinCelular < 100) {
+                datosGrafica.push({
+                    label: 'Sin celular activo',
+                    value: sinCelular,
+                    color: '#0dcaf0',
+                    displayValue: sinCelular.toFixed(1) + '%',
+                    grupo: 'Servicios'
+                });
+            }
+        
+            // ================================================================
+            // 4. SI NO HAY DATOS
+            // ================================================================
             if (datosGrafica.length === 0) {
                 canvas.parentElement.innerHTML = `
                     <div style="text-align:center;padding:20px;color:#888;font-size:11px;">
@@ -1834,16 +2032,28 @@
                 `;
                 return;
             }
-
-            datosGrafica.sort((a, b) => b.value - a.value);
-
+        
+            // ================================================================
+            // 5. ORDENAR POR GRUPO Y VALOR
+            // ================================================================
+            const ordenGrupos = ['Vivienda', 'Demografía', 'Social', 'Servicios'];
+            datosGrafica.sort((a, b) => {
+                const idxA = ordenGrupos.indexOf(a.grupo);
+                const idxB = ordenGrupos.indexOf(b.grupo);
+                if (idxA !== idxB) return idxA - idxB;
+                return b.value - a.value;
+            });
+        
+            // ================================================================
+            // 6. CREAR GRÁFICA
+            // ================================================================
             const ctx = canvas.getContext('2d');
             
             const labels = datosGrafica.map(d => d.label);
             const values = datosGrafica.map(d => d.value);
             const colors = datosGrafica.map(d => d.color);
             const displayValues = datosGrafica.map(d => d.displayValue);
-
+        
             chartModalInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1868,7 +2078,8 @@
                             callbacks: {
                                 label: function(context) {
                                     const idx = context.dataIndex;
-                                    return displayValues[idx] || context.parsed.x.toFixed(1) + '%';
+                                    const d = datosGrafica[idx];
+                                    return `${d.label}: ${d.displayValue}`;
                                 }
                             }
                         }
