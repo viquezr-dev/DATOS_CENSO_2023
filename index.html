@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Provincias de Panamá - Censo 2023</title>
+    <title>Provincias de Panamá - Datos del Censo</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -22,7 +22,7 @@
             padding: 12px 14px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            max-width: 290px;
+            max-width: 310px;
             backdrop-filter: blur(4px);
             border: 1px solid rgba(255,255,255,0.3);
             max-height: 95vh;
@@ -99,7 +99,7 @@
             border-left: 3px solid #2c6b9e;
             font-size: 10px;
             line-height: 1.5;
-            max-height: 320px;
+            max-height: 400px;
             overflow-y: auto;
         }
         .info-panel h4 { 
@@ -109,38 +109,24 @@
             border-bottom: 1px dashed #ddd;
             padding-bottom: 3px;
         }
-        .info-panel .stat-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 3px;
-            margin-top: 4px;
+        .info-panel table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9px;
         }
-        .info-panel .stat-item {
-            background: white;
-            padding: 3px 5px;
-            border-radius: 3px;
-            text-align: center;
-            border: 1px solid #eee;
+        .info-panel table td {
+            padding: 2px 4px;
+            border-bottom: 1px solid #eee;
         }
-        .info-panel .stat-item .num { 
-            font-weight: 700; 
-            color: #2c6b9e; 
-            font-size: 12px; 
-            display: block;
+        .info-panel table .campo {
+            color: #555;
+            font-weight: 500;
         }
-        .info-panel .stat-item .label { 
-            color: #666; 
-            font-size: 7px; 
-            text-transform: uppercase;
+        .info-panel table .valor {
+            font-weight: 600;
+            color: #1a2a3a;
+            text-align: right;
         }
-        .info-panel .stat-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 2px 0;
-            border-bottom: 1px dashed #f0f0f0;
-        }
-        .info-panel .stat-row .key { color: #555; }
-        .info-panel .stat-row .value { font-weight: 600; color: #1a2a3a; }
 
         .footer { 
             position: absolute; 
@@ -187,20 +173,6 @@
         .loading .title { font-weight: 600; font-size: 14px; color: #1a2a3a; }
         .loading .subtitle { font-size: 11px; color: #666; margin-top: 4px; }
         .loading .success { color: #28a745; font-size: 11px; margin-top: 8px; }
-        .loading .progress { 
-            width: 100%; 
-            height: 4px; 
-            background: #e9ecef; 
-            border-radius: 2px; 
-            margin-top: 10px;
-            overflow: hidden;
-        }
-        .loading .progress-bar {
-            height: 100%;
-            background: #2c6b9e;
-            width: 0%;
-            transition: width 0.3s;
-        }
 
         .debug-panel {
             position: absolute;
@@ -229,8 +201,6 @@
                 font-size: 9px;
             }
             .control-panel h3 { font-size: 11px; }
-            .info-panel .stat-grid { grid-template-columns: 1fr 1fr; }
-            .info-panel .stat-item .num { font-size: 10px; }
             .loading { min-width: 180px; padding: 15px 20px; }
             .debug-panel { max-width: 180px; font-size: 8px; }
         }
@@ -245,7 +215,6 @@
         <div class="spinner"></div>
         <div class="title" id="loading-title">Cargando datos...</div>
         <div class="subtitle" id="loading-subtitle">Provincias de Panamá</div>
-        <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
         <div id="loading-status"></div>
     </div>
 
@@ -276,10 +245,10 @@
         </div>
 
         <div class="info-panel" id="info-panel">
-            <h4>📊 Datos del Censo 2023</h4>
+            <h4>📋 Datos del Censo</h4>
             <div id="info-content">
                 <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
-                    Selecciona una provincia para ver los datos del censo
+                    Selecciona una provincia para ver los datos
                 </p>
             </div>
         </div>
@@ -361,15 +330,6 @@
                     throw new Error('Formato inválido: no tiene "features"');
                 }
                 
-                // Verificar geometría
-                let geometriasValidas = 0;
-                data.features.forEach(f => {
-                    if (f.geometry && f.geometry.type) geometriasValidas++;
-                });
-                
-                debugLog(`✅ Provincias cargadas: ${data.features.length} registros`, 'success');
-                debugLog(`   📐 Geometrías válidas: ${geometriasValidas}`, 'info');
-                
                 geoData.provincias = data;
                 provinciaFeatures = data.features;
                 
@@ -393,7 +353,7 @@
                     select.appendChild(option);
                 });
 
-                debugLog(`✅ Select poblado con ${provinciaFeatures.length} opciones`, 'success');
+                debugLog(`✅ ${provinciaFeatures.length} provincias cargadas`, 'success');
 
                 // Mostrar en el mapa
                 mostrarTodasLasProvincias();
@@ -402,7 +362,7 @@
                 document.getElementById('loading').style.display = 'none';
                 
             } catch (error) {
-                debugLog(`Error cargando provincias: ${error.message}`, 'error');
+                debugLog(`Error: ${error.message}`, 'error');
                 document.getElementById('loading').innerHTML = `
                     <div class="title" style="color:#dc3545;">❌ Error</div>
                     <div class="subtitle">${error.message}</div>
@@ -421,10 +381,7 @@
         // 5. MOSTRAR EN MAPA
         // ================================================================
         function mostrarTodasLasProvincias() {
-            if (!geoData.provincias) {
-                debugLog('No hay provincias para mostrar', 'warn');
-                return;
-            }
+            if (!geoData.provincias) return;
             
             if (currentLayerGeo) {
                 map.removeLayer(currentLayerGeo);
@@ -432,52 +389,50 @@
             }
 
             const features = geoData.provincias.features;
-            debugLog(`Mostrando ${features.length} provincias en el mapa`, 'info');
             
-            currentLayerGeo = L.geoJSON({
-                type: 'FeatureCollection',
-                features: features
-            }, {
-                style: function(feature, index) {
-                    const idx = index % colores.length;
-                    return {
-                        fillColor: colores[idx],
-                        fillOpacity: 0.35,
-                        color: colores[idx],
-                        weight: 2,
-                        opacity: 0.8
-                    };
-                },
-                onEachFeature: function(f, layer) {
-                    const props = f.properties;
-                    const nombre = props.PROV_NOMB || 'Provincia';
-                    layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
-                    layer.on('click', function() {
-                        const select = document.getElementById('provincia-select');
-                        for (let i = 0; i < select.options.length; i++) {
-                            if (select.options[i].textContent === nombre) {
-                                select.selectedIndex = i;
-                                seleccionarProvincia();
-                                break;
+            try {
+                currentLayerGeo = L.geoJSON({
+                    type: 'FeatureCollection',
+                    features: features
+                }, {
+                    style: function(feature, index) {
+                        const idx = index % colores.length;
+                        return {
+                            fillColor: colores[idx],
+                            fillOpacity: 0.35,
+                            color: colores[idx],
+                            weight: 2,
+                            opacity: 0.8
+                        };
+                    },
+                    onEachFeature: function(f, layer) {
+                        const props = f.properties;
+                        const nombre = props.PROV_NOMB || 'Provincia';
+                        layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
+                        layer.on('click', function() {
+                            const select = document.getElementById('provincia-select');
+                            for (let i = 0; i < select.options.length; i++) {
+                                if (select.options[i].textContent === nombre) {
+                                    select.selectedIndex = i;
+                                    seleccionarProvincia();
+                                    break;
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
+                }).addTo(map);
+
+                const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [20, 20] });
                 }
-            }).addTo(map);
-
-            debugLog(`✅ ${features.length} provincias mostradas`, 'success');
-
-            const bounds = L.geoJSON({ type: 'FeatureCollection', features }).getBounds();
-            if (bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [20, 20] });
+            } catch (error) {
+                debugLog(`Error al mostrar: ${error.message}`, 'error');
             }
         }
 
         function mostrarProvincia(feature) {
-            if (!feature) {
-                debugLog('No hay feature para mostrar', 'warn');
-                return;
-            }
+            if (!feature) return;
             
             if (currentLayerGeo) {
                 map.removeLayer(currentLayerGeo);
@@ -488,44 +443,38 @@
                 highlightLayer = null;
             }
 
-            debugLog(`Mostrando provincia: ${feature.properties.PROV_NOMB || 'Provincia'}`, 'info');
-
-            currentLayerGeo = L.geoJSON(feature, {
-                style: {
-                    fillColor: '#2c6b9e',
-                    fillOpacity: 0.35,
-                    color: '#1a4a7a',
-                    weight: 3,
-                    opacity: 0.9
-                },
-                onEachFeature: function(f, layer) {
-                    const props = f.properties;
-                    const nombre = props.PROV_NOMB || 'Provincia';
-                    layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
-                }
-            }).addTo(map);
-
-            highlightLayer = L.geoJSON(feature, {
-                style: {
-                    fillColor: 'transparent',
-                    color: '#ff6b35',
-                    weight: 4,
-                    opacity: 0.8,
-                    dashArray: '6, 4'
-                }
-            }).addTo(map);
-
-            zoomAFeature(feature);
-        }
-
-        function zoomAFeature(feature) {
             try {
+                currentLayerGeo = L.geoJSON(feature, {
+                    style: {
+                        fillColor: '#2c6b9e',
+                        fillOpacity: 0.35,
+                        color: '#1a4a7a',
+                        weight: 3,
+                        opacity: 0.9
+                    },
+                    onEachFeature: function(f, layer) {
+                        const props = f.properties;
+                        const nombre = props.PROV_NOMB || 'Provincia';
+                        layer.bindTooltip(nombre, { permanent: false, direction: 'center' });
+                    }
+                }).addTo(map);
+
+                highlightLayer = L.geoJSON(feature, {
+                    style: {
+                        fillColor: 'transparent',
+                        color: '#ff6b35',
+                        weight: 4,
+                        opacity: 0.8,
+                        dashArray: '6, 4'
+                    }
+                }).addTo(map);
+
                 const bounds = L.geoJSON(feature).getBounds();
                 if (bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
                 }
-            } catch (e) {
-                debugLog(`Error al hacer zoom: ${e.message}`, 'warn');
+            } catch (error) {
+                debugLog(`Error al mostrar provincia: ${error.message}`, 'error');
             }
         }
 
@@ -538,110 +487,68 @@
             
             if (!provId) {
                 mostrarTodasLasProvincias();
-                limpiarInfo();
+                document.getElementById('info-content').innerHTML = `
+                    <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
+                        Selecciona una provincia para ver los datos
+                    </p>
+                `;
                 return;
             }
 
             const provFeature = select.options[select.selectedIndex]?.dataset?.feature;
             if (provFeature) {
                 currentSelected = JSON.parse(provFeature);
-                mostrarInfo(currentSelected.properties);
+                mostrarDatosTabla(currentSelected.properties);
                 mostrarProvincia(currentSelected);
             }
         }
 
         // ================================================================
-        // 7. PANEL DE INFORMACIÓN
+        // 7. MOSTRAR DATOS EN TABLA (TAL CUAL)
         // ================================================================
-        function mostrarInfo(props) {
+        function mostrarDatosTabla(props) {
             const container = document.getElementById('info-content');
-
-            const nombre = props.PROV_NOMB || 'Sin nombre';
-            const id = props.PROV_ID || 'N/A';
             
-            // Convertir a números
-            const poblacion = parseFloat(props.N_PERSONAS) || 0;
-            const viviendas = parseFloat(props.N_VIVIENDA) || 0;
-            const area = parseFloat(props.AREA) || 0;
-            const hombres = parseFloat(props.P_HOMBRES) || 0;
-            const mujeres = parseFloat(props.P_MUJERES) || 0;
-            const analf = parseFloat(props.ANALFAB) || 0;
-            const desocup = parseFloat(props.DESOCUP) || 0;
-            const sinAgua = parseFloat(props.SIN_AGUA) || 0;
-            const sinLuz = parseFloat(props.SIN_LUZ) || 0;
-            const sinInternet = parseFloat(props.SIN_INTERN) || 0;
-            const conDisc = parseFloat(props.CON_DISC) || 0;
-            const mayor18 = parseFloat(props.MAYOR_18) || 0;
-            const sinServSan = parseFloat(props.SIN_SER_SA) || 0;
-            const sinTV = parseFloat(props.SIN_TV) || 0;
-            const sinRadio = parseFloat(props.SIN_RADIO) || 0;
-            const sinTelefono = parseFloat(props.SIN_TEL_RE) || 0;
-            const sinCelular = parseFloat(props.SIN_TEL_CE) || 0;
-
-            debugLog(`Mostrando info de ${nombre} (Población: ${poblacion.toLocaleString()})`, 'info');
-
-            let html = `<h4>📍 ${nombre}</h4>`;
-
-            // Grid de estadísticas principales
-            html += `<div class="stat-grid">
-                <div class="stat-item">
-                    <span class="num">${poblacion > 0 ? poblacion.toLocaleString() : 'N/D'}</span>
-                    <span class="label">Población</span>
-                </div>
-                <div class="stat-item">
-                    <span class="num">${viviendas > 0 ? viviendas.toLocaleString() : 'N/D'}</span>
-                    <span class="label">Viviendas</span>
-                </div>
-                <div class="stat-item">
-                    <span class="num">${viviendas > 0 && poblacion > 0 ? (poblacion / viviendas).toFixed(2) : 'N/D'}</span>
-                    <span class="label">Pers./Viv.</span>
-                </div>
-            </div>`;
-
-            // Detalles
-            html += `<div style="margin-top:4px;">`;
-            const detalles = [
-                ['👨 Hombres', hombres > 0 ? hombres.toLocaleString() : null],
-                ['👩 Mujeres', mujeres > 0 ? mujeres.toLocaleString() : null],
-                ['👤 Mayores de 18', mayor18 > 0 ? mayor18.toLocaleString() : null],
-                ['📐 Área (km²)', area > 0 ? (area / 1000000).toFixed(2) : null],
-                ['📊 Analfabetismo', analf > 0 ? analf.toFixed(1) + '%' : null],
-                ['📊 Desocupación', desocup > 0 ? desocup.toFixed(1) + '%' : null],
-                ['🚰 Sin agua', sinAgua > 0 ? sinAgua.toFixed(1) + '%' : null],
-                ['💡 Sin luz', sinLuz > 0 ? sinLuz.toFixed(1) + '%' : null],
-                ['📡 Sin internet', sinInternet > 0 ? sinInternet.toFixed(1) + '%' : null],
-                ['🚽 Sin servicio sanitario', sinServSan > 0 ? sinServSan.toFixed(1) + '%' : null],
-                ['📺 Sin TV', sinTV > 0 ? sinTV.toFixed(1) + '%' : null],
-                ['📻 Sin radio', sinRadio > 0 ? sinRadio.toFixed(1) + '%' : null],
-                ['📞 Sin teléfono fijo', sinTelefono > 0 ? sinTelefono.toFixed(1) + '%' : null],
-                ['📱 Sin celular', sinCelular > 0 ? sinCelular.toFixed(1) + '%' : null],
-                ['♿ Con discapacidad', conDisc > 0 ? conDisc.toLocaleString() : null]
+            const nombre = props.PROV_NOMB || 'Sin nombre';
+            
+            // Lista de campos a mostrar (en el orden de la tabla original)
+            const campos = [
+                'PROV_ID', 'PROV_NOMB', 'PROV_LEY', 'LEY_MOD_P', 'GACETA_P', 'GACE_MOD_P',
+                'PERIMETRO', 'AREA', 'N_PERSONAS', 'P_HOMBRES', 'P_MUJERES', 'MAYOR_18',
+                'MENOS_PRIM', 'AGROPEC', 'NO_ECO_ACT', 'DESOCUP', 'ANALFAB', 'CON_DISC',
+                'N_VIVIENDA', 'V_INDIV', 'V_IMPROV', 'V_APARTAM', 'V_CUARTOS', 'V_LOCAL',
+                'V_DAMNI', 'V_INDIG', 'V_COLECTIV', 'V_ASILOS', 'V_PRO_ADOL', 'V_CARCELES',
+                'V_CON_REL', 'V_TRABA', 'V_ALBE_MIG', 'V_REHABILI', 'V_OTR_COLE',
+                'TOTA_VIV_P', 'CON_PISO_T', 'SIN_AGUA', 'SIN_SER_SA', 'SIN_LUZ',
+                'COC_LEÑA', 'COC_CARBON', 'SIN_TV', 'SIN_RADIO', 'SIN_TEL_RE',
+                'SIN_TEL_CE', 'SIN_INTERN', 'ID1'
             ];
-            detalles.forEach(([key, value]) => {
-                if (value !== null) {
-                    html += `<div class="stat-row">
-                        <span class="key">${key}</span>
-                        <span class="value">${value}</span>
-                    </div>`;
+
+            let html = `<h4>📋 ${nombre}</h4>`;
+            html += `<table>`;
+
+            // Mostrar cada campo con su valor
+            campos.forEach(campo => {
+                let valor = props[campo];
+                if (valor !== undefined && valor !== null && valor !== '') {
+                    // Formatear números
+                    if (typeof valor === 'number' || !isNaN(parseFloat(valor))) {
+                        const num = parseFloat(valor);
+                        if (Number.isInteger(num)) {
+                            valor = num.toLocaleString();
+                        } else {
+                            valor = num.toFixed(2);
+                        }
+                    }
+                    html += `<tr>
+                        <td class="campo">${campo}</td>
+                        <td class="valor">${valor}</td>
+                    </tr>`;
                 }
             });
-            html += `</div>`;
 
-            if (id !== 'N/A') {
-                html += `<div style="margin-top:3px;font-size:8px;color:#888;border-top:1px dashed #ddd;padding-top:3px;">
-                    ID: ${id}
-                </div>`;
-            }
-
+            html += `</table>`;
             container.innerHTML = html;
-        }
-
-        function limpiarInfo() {
-            document.getElementById('info-content').innerHTML = `
-                <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
-                    Selecciona una provincia para ver los datos del censo
-                </p>
-            `;
         }
 
         // ================================================================
@@ -662,7 +569,7 @@
             link.download = `${nombre.toLowerCase().replace(/\s+/g, '_')}.geojson`;
             link.click();
             URL.revokeObjectURL(link.href);
-            debugLog(`📥 GeoJSON exportado: ${nombre}`, 'success');
+            debugLog(`📥 GeoJSON exportado`, 'success');
         }
 
         function exportarCSV() {
@@ -706,7 +613,6 @@
         function resetearMapa() {
             document.getElementById('provincia-select').selectedIndex = 0;
             currentSelected = null;
-            limpiarInfo();
             
             if (currentLayerGeo) {
                 map.removeLayer(currentLayerGeo);
@@ -724,6 +630,12 @@
             } else {
                 map.setView([8.5, -80.0], 7);
             }
+
+            document.getElementById('info-content').innerHTML = `
+                <p style="color:#888;font-style:italic;text-align:center;font-size:9px;padding:10px 0;">
+                    Selecciona una provincia para ver los datos
+                </p>
+            `;
             debugLog('🔄 Mapa reseteado', 'info');
         }
 
@@ -736,7 +648,7 @@
         window.exportarCSV = exportarCSV;
         window.resetearMapa = resetearMapa;
 
-        console.log('🗺️ Provincias de Panamá - Censo 2023');
+        console.log('🗺️ Provincias de Panamá - Datos del Censo');
         console.log('📌 Cargando datos...');
 
         cargarProvincias();
