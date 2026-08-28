@@ -122,6 +122,8 @@
         .btn-reset:hover { background: #c82333; }
         .btn-back { background: #6c757d; color: white; }
         .btn-back:hover { background: #5a6268; }
+        .btn-grafica { background: #6f42c1; color: white; }
+        .btn-grafica:hover { background: #5a32a3; }
 
         .selector-wrapper {
             margin-bottom: 4px;
@@ -150,7 +152,7 @@
             border-left: 3px solid #2c6b9e;
             font-size: 10px;
             line-height: 1.5;
-            max-height: 500px;
+            max-height: 400px;
             overflow-y: auto;
         }
         .info-panel::-webkit-scrollbar { width: 3px; }
@@ -164,24 +166,6 @@
             display: flex;
             align-items: center;
             gap: 6px;
-        }
-        .info-panel .chart-container {
-            margin-top: 8px;
-            padding: 8px;
-            background: white;
-            border-radius: 6px;
-            border: 1px solid #eee;
-        }
-        .info-panel .chart-container canvas {
-            max-height: 200px;
-            max-width: 100%;
-        }
-        .info-panel .chart-title {
-            font-size: 9px;
-            font-weight: 600;
-            color: #2c6b9e;
-            text-align: center;
-            margin-bottom: 4px;
         }
         .info-panel table {
             width: 100%;
@@ -218,15 +202,22 @@
             display: block;
             margin-bottom: 8px;
         }
-        .info-panel .indicador-destacado {
-            display: inline-block;
-            background: #2c6b9e;
+        .info-panel .btn-grafica-mini {
+            display: block;
+            width: 100%;
+            margin-top: 6px;
+            padding: 4px;
+            background: #6f42c1;
             color: white;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 9px;
             font-weight: 600;
-            margin-left: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .info-panel .btn-grafica-mini:hover {
+            background: #5a32a3;
         }
 
         .footer { 
@@ -303,6 +294,75 @@
             border-top-color: rgba(0,0,0,0.8);
         }
 
+        /* Modal para gráfica */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .modal-content .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #2c6b9e;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+        .modal-content .modal-header h3 {
+            font-size: 14px;
+            color: #1a2a3a;
+        }
+        .modal-content .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #888;
+            padding: 0 8px;
+        }
+        .modal-content .modal-close:hover {
+            color: #dc3545;
+        }
+        .modal-content canvas {
+            max-height: 400px;
+            max-width: 100%;
+        }
+        .modal-content .chart-title {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #2c6b9e;
+            margin-bottom: 8px;
+        }
+        .modal-content .chart-subtitle {
+            text-align: center;
+            font-size: 9px;
+            color: #888;
+            margin-top: 4px;
+        }
+
         @media (max-width: 600px) {
             .control-panel { 
                 top: 6px; 
@@ -318,7 +378,8 @@
             .info-panel table .campo { width: 50%; }
             .info-panel table .valor { width: 50%; }
             .footer { font-size: 7px; padding: 2px 10px; }
-            .info-panel .chart-container canvas { max-height: 150px; }
+            .modal-content { padding: 16px; }
+            .modal-content canvas { max-height: 250px; }
         }
     </style>
 </head>
@@ -330,9 +391,22 @@
     <div class="loading" id="loading">
         <div class="spinner"></div>
         <div class="title" id="loading-title">Cargando datos...</div>
-        <div class="subtitle" id="loading-subtitle">Provincias, Distritos y Corregimientos</div>
+        <div class="subtitle" id="loading-subtitle">Provincias, Distritos, Corregimientos, Lugares y Barrios</div>
         <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
         <div id="loading-status"></div>
+    </div>
+
+    <!-- Modal para gráfica -->
+    <div class="modal-overlay" id="modalGrafica">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-titulo">📊 Indicadores Socioeconómicos</h3>
+                <button class="modal-close" onclick="cerrarModal()">&times;</button>
+            </div>
+            <div class="chart-title" id="modal-subtitulo"></div>
+            <canvas id="modal-chart"></canvas>
+            <div class="chart-subtitle" id="modal-nota">* Los porcentajes se calculan sobre el total de la población o viviendas</div>
+        </div>
     </div>
 
     <!-- Panel de Control -->
@@ -373,8 +447,25 @@
             </select>
         </div>
 
+        <!-- SELECTOR 4: LUGAR POBLADO -->
+        <div class="selector-wrapper" id="wrapper-lugar" style="border-left-color:#fd7e14;display:none;">
+            <label>📍 Lugar Poblado:</label>
+            <select id="selector-lugar" onchange="cambiarLugar()">
+                <option value="">Seleccionar lugar poblado...</option>
+            </select>
+        </div>
+
+        <!-- SELECTOR 5: BARRIO -->
+        <div class="selector-wrapper" id="wrapper-barrio" style="border-left-color:#6f42c1;display:none;">
+            <label>📍 Barrio:</label>
+            <select id="selector-barrio" onchange="cambiarBarrio()">
+                <option value="">Seleccionar barrio...</option>
+            </select>
+        </div>
+
         <div class="btn-group" style="margin-top:6px;">
             <button class="btn-back" onclick="volverNivel()" id="btn-back" style="display:none;">⬅ Volver</button>
+            <button class="btn-grafica" onclick="abrirModal()" id="btn-grafica" style="display:none;">📊 Ver Gráfica</button>
             <button class="btn-geojson" onclick="exportarGeoJSON()">📥 GeoJSON</button>
             <button class="btn-export" onclick="exportarCSV()">📊 CSV</button>
             <button class="btn-reset" onclick="resetearMapa()">🔄 Reset</button>
@@ -399,7 +490,7 @@
     
     <script>
         // ================================================================
-        // 1. FUNCIÓN PARA FORMATEAR CÓDIGOS CON CEROS A LA IZQUIERDA
+        // 1. FUNCIÓN PARA FORMATEAR CÓDIGOS
         // ================================================================
         function formatearCodigo(valor, longitud) {
             if (valor === undefined || valor === null || valor === '') return '';
@@ -436,7 +527,9 @@
         const datos = {
             provincias: null,
             distritos: null,
-            corregimientos: null
+            corregimientos: null,
+            lugares: null,
+            barrios: null
         };
 
         let capaActual = null;
@@ -444,13 +537,16 @@
         let capaEtiquetas = null;
         let nivelActual = 'provincias';
         let historial = ['provincias'];
-        let chartInstance = null;
-        let chartIndicadoresInstance = null;
+        let chartModalInstance = null;
+        let propsActuales = null;
+        let tituloActual = '';
 
         let seleccion = {
             provincia: null,
             distrito: null,
-            corregimiento: null
+            corregimiento: null,
+            lugar: null,
+            barrio: null
         };
 
         const colores = [
@@ -459,18 +555,8 @@
             '#d63384', '#0dcaf0', '#198754', '#ff6b35', '#7b2fbe'
         ];
 
-        const coloresIndicadores = {
-            'Densidad': '#2c6b9e',
-            'Ocupación': '#28a745',
-            'Desocupación': '#dc3545',
-            'Hombres': '#17a2b8',
-            'Mujeres': '#e83e8c',
-            'Viviendas Ocupadas': '#28a745',
-            'Viviendas Desocupadas': '#dc3545'
-        };
-
         let datosCargados = 0;
-        const totalArchivos = 3;
+        const totalArchivos = 5;
 
         // ================================================================
         // 4. DICCIONARIO DE CAMPOS
@@ -484,6 +570,14 @@
             'CORR_ID': 'Código de Corregimiento',
             'CORR_NOMB': 'Nombre de Corregimiento',
             'CORR_CODE': 'Código Corregimiento (6 dígitos)',
+            'LUPO_ID': 'Código de Lugar Poblado',
+            'LUPO_CODE': 'Código Lugar (6 dígitos)',
+            'LUPO_NOMB': 'Nombre de Lugar Poblado',
+            'LUPO_CATE': 'Categoría del Lugar',
+            'LUPO_TIPO': 'Tipo de Lugar',
+            'BARR_ID': 'Código de Barrio',
+            'BARR_NOMB': 'Nombre de Barrio',
+            'BARR_CODE': 'Código Barrio (8 dígitos)',
             'PROV_LEY': 'Ley de Creación Provincia',
             'LEY_MOD_P': 'Ley Modificatoria Provincia',
             'GACETA_P': 'Gaceta Oficial Provincia',
@@ -567,7 +661,9 @@
             await Promise.all([
                 cargarGeoJSON('provincias', 'provincias.geojson'),
                 cargarGeoJSON('distritos', 'distritos.geojson'),
-                cargarGeoJSON('corregimientos', 'corregimientos.geojson')
+                cargarGeoJSON('corregimientos', 'corregimientos.geojson'),
+                cargarGeoJSON('lugares', 'lugares_poblados.geojson'),
+                cargarGeoJSON('barrios', 'barrios.geojson')
             ]);
 
             if (!datos.provincias) {
@@ -621,7 +717,9 @@
             const nombres = {
                 'provincias': 'Provincias',
                 'distritos': 'Distritos',
-                'corregimientos': 'Corregimientos'
+                'corregimientos': 'Corregimientos',
+                'lugares': 'Lugares Poblados',
+                'barrios': 'Barrios'
             };
             document.getElementById('badge-nivel').textContent = nombres[nivel] || nivel;
             document.getElementById('btn-back').style.display = historial.length > 1 ? 'block' : 'none';
@@ -655,6 +753,26 @@
                 });
                 titulo = 'Corregimientos';
                 nivelActual = 'corregimientos';
+            } else if (nivel === 'lugares') {
+                if (!datos.lugares) { return; }
+                features = datos.lugares.features.filter(f => {
+                    const p = f.properties;
+                    const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
+                    const corrCodeFormateado = formatearCodigo(filtroId, 6);
+                    return corrCode === corrCodeFormateado;
+                });
+                titulo = 'Lugares Poblados';
+                nivelActual = 'lugares';
+            } else if (nivel === 'barrios') {
+                if (!datos.barrios) { return; }
+                features = datos.barrios.features.filter(f => {
+                    const p = f.properties;
+                    const lupoCode = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
+                    const lupoCodeFormateado = formatearCodigo(filtroId, 6);
+                    return lupoCode === lupoCodeFormateado;
+                });
+                titulo = 'Barrios';
+                nivelActual = 'barrios';
             }
 
             if (features.length === 0) {
@@ -684,7 +802,8 @@
                 },
                 onEachFeature: function(f, layer) {
                     const props = f.properties;
-                    let nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 'Área';
+                    let nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
+                                props.LUPO_NOMB || props.BARR_NOMB || 'Área';
                     
                     layer.bindTooltip(nombre, { 
                         permanent: false, 
@@ -717,6 +836,24 @@
                                 if (select.options[i].textContent === nombre) {
                                     select.selectedIndex = i;
                                     cambiarCorregimiento();
+                                    break;
+                                }
+                            }
+                        } else if (nivel === 'lugares') {
+                            const select = document.getElementById('selector-lugar');
+                            for (let i = 0; i < select.options.length; i++) {
+                                if (select.options[i].textContent === nombre) {
+                                    select.selectedIndex = i;
+                                    cambiarLugar();
+                                    break;
+                                }
+                            }
+                        } else if (nivel === 'barrios') {
+                            const select = document.getElementById('selector-barrio');
+                            for (let i = 0; i < select.options.length; i++) {
+                                if (select.options[i].textContent === nombre) {
+                                    select.selectedIndex = i;
+                                    cambiarBarrio();
                                     break;
                                 }
                             }
@@ -780,21 +917,8 @@
             const select = document.getElementById('selector-provincia');
             const value = select.value;
             
-            const selectDist = document.getElementById('selector-distrito');
-            const selectCorr = document.getElementById('selector-corregimiento');
-            const wrapperDist = document.getElementById('wrapper-distrito');
-            const wrapperCorr = document.getElementById('wrapper-corregimiento');
-            
-            selectDist.innerHTML = '<option value="">Seleccionar distrito...</option>';
-            selectCorr.innerHTML = '<option value="">Seleccionar corregimiento...</option>';
-            selectDist.disabled = true;
-            selectCorr.disabled = true;
-            wrapperDist.style.display = 'none';
-            wrapperCorr.style.display = 'none';
-            
-            // Limpiar historial al cambiar de provincia
-            historial = ['provincias'];
-            document.getElementById('btn-back').style.display = 'none';
+            // Resetear todos los selectores hijos
+            resetearSelectoresHijos();
             
             if (!value) {
                 mostrarNivel('provincias');
@@ -808,6 +932,9 @@
                 seleccion.provincia = null;
                 seleccion.distrito = null;
                 seleccion.corregimiento = null;
+                seleccion.lugar = null;
+                seleccion.barrio = null;
+                document.getElementById('btn-grafica').style.display = 'none';
                 if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
                 return;
             }
@@ -817,6 +944,8 @@
             seleccion.provincia = props;
             seleccion.distrito = null;
             seleccion.corregimiento = null;
+            seleccion.lugar = null;
+            seleccion.barrio = null;
             
             mostrarDatosTabla(props, 'Provincia');
             
@@ -837,7 +966,28 @@
         }
 
         // ================================================================
-        // 8. CARGAR DISTRITOS
+        // 8. RESETEAR SELECTORES HIJOS
+        // ================================================================
+        function resetearSelectoresHijos() {
+            const selects = ['distrito', 'corregimiento', 'lugar', 'barrio'];
+            const wrappers = ['wrapper-distrito', 'wrapper-corregimiento', 'wrapper-lugar', 'wrapper-barrio'];
+            
+            selects.forEach(id => {
+                const select = document.getElementById('selector-' + id);
+                if (select) {
+                    select.innerHTML = '<option value="">Seleccionar ' + id + '...</option>';
+                    select.disabled = true;
+                }
+            });
+            
+            wrappers.forEach(id => {
+                const wrapper = document.getElementById(id);
+                if (wrapper) wrapper.style.display = 'none';
+            });
+        }
+
+        // ================================================================
+        // 9. CARGAR DISTRITOS
         // ================================================================
         function cargarDistritos(provId) {
             const selectDist = document.getElementById('selector-distrito');
@@ -847,8 +997,6 @@
                 const p = f.properties;
                 return p.PROV_ID === provId;
             });
-
-            console.log(`Distritos para provincia ${provId}: ${distritos.length}`);
 
             if (distritos.length === 0) {
                 selectDist.innerHTML = '<option value="">No hay distritos disponibles</option>';
@@ -888,18 +1036,27 @@
         }
 
         // ================================================================
-        // 9. CAMBIAR DISTRITO
+        // 10. CAMBIAR DISTRITO
         // ================================================================
         function cambiarDistrito() {
             const select = document.getElementById('selector-distrito');
             const value = select.value;
             
-            const selectCorr = document.getElementById('selector-corregimiento');
-            const wrapperCorr = document.getElementById('wrapper-corregimiento');
+            // Resetear selectores hijos (corregimiento, lugar, barrio)
+            const selects = ['corregimiento', 'lugar', 'barrio'];
+            const wrappers = ['wrapper-corregimiento', 'wrapper-lugar', 'wrapper-barrio'];
             
-            selectCorr.innerHTML = '<option value="">Seleccionar corregimiento...</option>';
-            selectCorr.disabled = true;
-            wrapperCorr.style.display = 'none';
+            selects.forEach(id => {
+                const sel = document.getElementById('selector-' + id);
+                if (sel) {
+                    sel.innerHTML = '<option value="">Seleccionar ' + id + '...</option>';
+                    sel.disabled = true;
+                }
+            });
+            wrappers.forEach(id => {
+                const wrapper = document.getElementById(id);
+                if (wrapper) wrapper.style.display = 'none';
+            });
             
             if (!value) {
                 if (seleccion.provincia) {
@@ -907,6 +1064,9 @@
                 }
                 seleccion.distrito = null;
                 seleccion.corregimiento = null;
+                seleccion.lugar = null;
+                seleccion.barrio = null;
+                document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
 
@@ -914,6 +1074,8 @@
             const props = feature.properties;
             seleccion.distrito = props;
             seleccion.corregimiento = null;
+            seleccion.lugar = null;
+            seleccion.barrio = null;
             
             mostrarDatosTabla(props, 'Distrito');
             
@@ -934,7 +1096,7 @@
         }
 
         // ================================================================
-        // 10. CARGAR CORREGIMIENTOS
+        // 11. CARGAR CORREGIMIENTOS
         // ================================================================
         function cargarCorregimientos(distCode) {
             const selectCorr = document.getElementById('selector-corregimiento');
@@ -947,8 +1109,6 @@
                 const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
                 return corrCode.substring(0, 4) === distCodeFormateado;
             });
-
-            console.log(`Corregimientos para distrito ${distCodeFormateado}: ${corregimientos.length}`);
 
             if (corregimientos.length === 0) {
                 selectCorr.innerHTML = '<option value="">No hay corregimientos disponibles</option>';
@@ -988,11 +1148,27 @@
         }
 
         // ================================================================
-        // 11. CAMBIAR CORREGIMIENTO
+        // 12. CAMBIAR CORREGIMIENTO
         // ================================================================
         function cambiarCorregimiento() {
             const select = document.getElementById('selector-corregimiento');
             const value = select.value;
+            
+            // Resetear selectores hijos (lugar, barrio)
+            const selects = ['lugar', 'barrio'];
+            const wrappers = ['wrapper-lugar', 'wrapper-barrio'];
+            
+            selects.forEach(id => {
+                const sel = document.getElementById('selector-' + id);
+                if (sel) {
+                    sel.innerHTML = '<option value="">Seleccionar ' + id + '...</option>';
+                    sel.disabled = true;
+                }
+            });
+            wrappers.forEach(id => {
+                const wrapper = document.getElementById(id);
+                if (wrapper) wrapper.style.display = 'none';
+            });
             
             if (!value) {
                 if (seleccion.distrito) {
@@ -1002,14 +1178,214 @@
                     mostrarNivel('corregimientos', distCodeFormateado);
                 }
                 seleccion.corregimiento = null;
+                seleccion.lugar = null;
+                seleccion.barrio = null;
+                document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
 
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             seleccion.corregimiento = props;
+            seleccion.lugar = null;
+            seleccion.barrio = null;
             
             mostrarDatosTabla(props, 'Corregimiento');
+            
+            if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
+            capaResaltado = L.geoJSON(feature, {
+                style: {
+                    fillColor: 'transparent',
+                    color: '#ff6b35',
+                    weight: 4,
+                    opacity: 0.9,
+                    dashArray: '6, 4'
+                }
+            }).addTo(map);
+
+            if (datos.lugares) {
+                cargarLugares(value);
+            }
+        }
+
+        // ================================================================
+        // 13. CARGAR LUGARES POBLADOS
+        // ================================================================
+        function cargarLugares(corrCode) {
+            const selectLugar = document.getElementById('selector-lugar');
+            const wrapperLugar = document.getElementById('wrapper-lugar');
+            
+            const corrCodeFormateado = formatearCodigo(corrCode, 6);
+            
+            const lugares = datos.lugares.features.filter(f => {
+                const p = f.properties;
+                const code = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
+                return code === corrCodeFormateado;
+            });
+
+            if (lugares.length === 0) {
+                selectLugar.innerHTML = '<option value="">No hay lugares poblados disponibles</option>';
+                selectLugar.disabled = true;
+                wrapperLugar.style.display = 'block';
+                return;
+            }
+
+            selectLugar.innerHTML = '<option value="">Seleccionar lugar poblado...</option>';
+            
+            lugares.sort((a, b) => {
+                const nomA = a.properties.LUPO_NOMB || '';
+                const nomB = b.properties.LUPO_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            lugares.forEach(f => {
+                const nombre = f.properties.LUPO_NOMB || 'Sin nombre';
+                const id = f.properties.LUPO_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID);
+                const lupoCode = formatearCodigo(id, 6);
+                const option = document.createElement('option');
+                option.value = lupoCode;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                selectLugar.appendChild(option);
+            });
+
+            selectLugar.disabled = false;
+            wrapperLugar.style.display = 'block';
+
+            mostrarNivel('lugares', corrCodeFormateado);
+            
+            if (lugares.length === 1) {
+                selectLugar.selectedIndex = 1;
+                cambiarLugar();
+            }
+        }
+
+        // ================================================================
+        // 14. CAMBIAR LUGAR POBLADO
+        // ================================================================
+        function cambiarLugar() {
+            const select = document.getElementById('selector-lugar');
+            const value = select.value;
+            
+            // Resetear selector de barrio
+            const selectBarrio = document.getElementById('selector-barrio');
+            const wrapperBarrio = document.getElementById('wrapper-barrio');
+            selectBarrio.innerHTML = '<option value="">Seleccionar barrio...</option>';
+            selectBarrio.disabled = true;
+            wrapperBarrio.style.display = 'none';
+            
+            if (!value) {
+                if (seleccion.corregimiento) {
+                    const corrCode = seleccion.corregimiento.CORR_CODE || 
+                                    (seleccion.corregimiento.PROV_ID + seleccion.corregimiento.DIST_ID + seleccion.corregimiento.CORR_ID);
+                    const corrCodeFormateado = formatearCodigo(corrCode, 6);
+                    mostrarNivel('lugares', corrCodeFormateado);
+                }
+                seleccion.lugar = null;
+                seleccion.barrio = null;
+                document.getElementById('btn-grafica').style.display = 'none';
+                return;
+            }
+
+            const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
+            const props = feature.properties;
+            seleccion.lugar = props;
+            seleccion.barrio = null;
+            
+            mostrarDatosTabla(props, 'Lugar Poblado');
+            
+            if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
+            capaResaltado = L.geoJSON(feature, {
+                style: {
+                    fillColor: 'transparent',
+                    color: '#ff6b35',
+                    weight: 4,
+                    opacity: 0.9,
+                    dashArray: '6, 4'
+                }
+            }).addTo(map);
+
+            if (datos.barrios) {
+                cargarBarrios(value);
+            }
+        }
+
+        // ================================================================
+        // 15. CARGAR BARRIOS
+        // ================================================================
+        function cargarBarrios(lupoCode) {
+            const selectBarrio = document.getElementById('selector-barrio');
+            const wrapperBarrio = document.getElementById('wrapper-barrio');
+            
+            const lupoCodeFormateado = formatearCodigo(lupoCode, 6);
+            
+            const barrios = datos.barrios.features.filter(f => {
+                const p = f.properties;
+                const code = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
+                return code === lupoCodeFormateado;
+            });
+
+            if (barrios.length === 0) {
+                selectBarrio.innerHTML = '<option value="">No hay barrios disponibles</option>';
+                selectBarrio.disabled = true;
+                wrapperBarrio.style.display = 'block';
+                return;
+            }
+
+            selectBarrio.innerHTML = '<option value="">Seleccionar barrio...</option>';
+            
+            barrios.sort((a, b) => {
+                const nomA = a.properties.BARR_NOMB || '';
+                const nomB = b.properties.BARR_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            barrios.forEach(f => {
+                const nombre = f.properties.BARR_NOMB || 'Sin nombre';
+                const id = f.properties.BARR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID + f.properties.BARR_ID);
+                const barrioCode = formatearCodigo(id, 8);
+                const option = document.createElement('option');
+                option.value = barrioCode;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                selectBarrio.appendChild(option);
+            });
+
+            selectBarrio.disabled = false;
+            wrapperBarrio.style.display = 'block';
+
+            mostrarNivel('barrios', lupoCodeFormateado);
+            
+            if (barrios.length === 1) {
+                selectBarrio.selectedIndex = 1;
+                cambiarBarrio();
+            }
+        }
+
+        // ================================================================
+        // 16. CAMBIAR BARRIO
+        // ================================================================
+        function cambiarBarrio() {
+            const select = document.getElementById('selector-barrio');
+            const value = select.value;
+            
+            if (!value) {
+                if (seleccion.lugar) {
+                    const lupoCode = seleccion.lugar.LUPO_CODE || 
+                                    (seleccion.lugar.PROV_ID + seleccion.lugar.DIST_ID + seleccion.lugar.CORR_ID + seleccion.lugar.LUPO_ID);
+                    const lupoCodeFormateado = formatearCodigo(lupoCode, 6);
+                    mostrarNivel('barrios', lupoCodeFormateado);
+                }
+                seleccion.barrio = null;
+                document.getElementById('btn-grafica').style.display = 'none';
+                return;
+            }
+
+            const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
+            const props = feature.properties;
+            seleccion.barrio = props;
+            
+            mostrarDatosTabla(props, 'Barrio');
             
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             capaResaltado = L.geoJSON(feature, {
@@ -1024,45 +1400,80 @@
         }
 
         // ================================================================
-        // 12. VOLVER NIVEL JERÁRQUICO
+        // 17. VOLVER NIVEL JERÁRQUICO
         // ================================================================
         function volverNivel() {
-            // Si estamos en corregimiento, ir a distrito
-            if (nivelActual === 'corregimientos') {
-                const selectCorr = document.getElementById('selector-corregimiento');
-                selectCorr.selectedIndex = 0;
-                selectCorr.disabled = true;
-                document.getElementById('wrapper-corregimiento').style.display = 'none';
+            const niveles = ['provincias', 'distritos', 'corregimientos', 'lugares', 'barrios'];
+            const idx = niveles.indexOf(nivelActual);
+            
+            if (idx <= 0) return;
+            
+            const nivelAnterior = niveles[idx - 1];
+            
+            // Resetear selectores según el nivel
+            if (nivelActual === 'barrios') {
+                document.getElementById('selector-barrio').selectedIndex = 0;
+                document.getElementById('selector-barrio').disabled = true;
+                document.getElementById('wrapper-barrio').style.display = 'none';
+                seleccion.barrio = null;
                 
-                if (seleccion.distrito) {
-                    const provId = seleccion.distrito.PROV_ID;
-                    mostrarNivel('distritos', provId);
-                    const selectDist = document.getElementById('selector-distrito');
-                    selectDist.disabled = false;
-                    document.getElementById('wrapper-distrito').style.display = 'block';
-                    const distCode = seleccion.distrito.DIST_CODE || 
-                                    (seleccion.distrito.PROV_ID + seleccion.distrito.DIST_ID);
-                    const distCodeFormateado = formatearCodigo(distCode, 4);
-                    for (let i = 0; i < selectDist.options.length; i++) {
-                        if (selectDist.options[i].value === distCodeFormateado) {
-                            selectDist.selectedIndex = i;
-                            break;
-                        }
-                    }
+                // Volver a mostrar lugares
+                if (seleccion.lugar) {
+                    const lupoCode = seleccion.lugar.LUPO_CODE || 
+                                    (seleccion.lugar.PROV_ID + seleccion.lugar.DIST_ID + seleccion.lugar.CORR_ID + seleccion.lugar.LUPO_ID);
+                    const lupoCodeFormateado = formatearCodigo(lupoCode, 6);
+                    mostrarNivel('lugares', lupoCodeFormateado);
+                    document.getElementById('selector-lugar').disabled = false;
+                    document.getElementById('wrapper-lugar').style.display = 'block';
                 }
-                seleccion.corregimiento = null;
+                document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
             
-            // Si estamos en distrito, ir a provincia
+            if (nivelActual === 'lugares') {
+                document.getElementById('selector-lugar').selectedIndex = 0;
+                document.getElementById('selector-lugar').disabled = true;
+                document.getElementById('wrapper-lugar').style.display = 'none';
+                seleccion.lugar = null;
+                
+                // Volver a mostrar corregimientos
+                if (seleccion.corregimiento) {
+                    const corrCode = seleccion.corregimiento.CORR_CODE || 
+                                    (seleccion.corregimiento.PROV_ID + seleccion.corregimiento.DIST_ID + seleccion.corregimiento.CORR_ID);
+                    const corrCodeFormateado = formatearCodigo(corrCode, 6);
+                    mostrarNivel('corregimientos', corrCodeFormateado);
+                    document.getElementById('selector-corregimiento').disabled = false;
+                    document.getElementById('wrapper-corregimiento').style.display = 'block';
+                }
+                document.getElementById('btn-grafica').style.display = 'none';
+                return;
+            }
+            
+            if (nivelActual === 'corregimientos') {
+                document.getElementById('selector-corregimiento').selectedIndex = 0;
+                document.getElementById('selector-corregimiento').disabled = true;
+                document.getElementById('wrapper-corregimiento').style.display = 'none';
+                seleccion.corregimiento = null;
+                
+                // Volver a mostrar distritos
+                if (seleccion.distrito) {
+                    const provId = seleccion.distrito.PROV_ID;
+                    mostrarNivel('distritos', provId);
+                    document.getElementById('selector-distrito').disabled = false;
+                    document.getElementById('wrapper-distrito').style.display = 'block';
+                }
+                document.getElementById('btn-grafica').style.display = 'none';
+                return;
+            }
+            
             if (nivelActual === 'distritos') {
-                const selectDist = document.getElementById('selector-distrito');
-                selectDist.selectedIndex = 0;
-                selectDist.disabled = true;
+                document.getElementById('selector-distrito').selectedIndex = 0;
+                document.getElementById('selector-distrito').disabled = true;
                 document.getElementById('wrapper-distrito').style.display = 'none';
+                seleccion.distrito = null;
                 
+                // Volver a mostrar provincias
                 mostrarNivel('provincias');
-                
                 if (seleccion.provincia) {
                     const selectProv = document.getElementById('selector-provincia');
                     const provId = seleccion.provincia.PROV_ID;
@@ -1073,29 +1484,19 @@
                         }
                     }
                     mostrarDatosTabla(seleccion.provincia, 'Provincia');
-                    if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
-                    const provFeature = JSON.parse(selectProv.options[selectProv.selectedIndex].dataset.feature);
-                    capaResaltado = L.geoJSON(provFeature, {
-                        style: {
-                            fillColor: 'transparent',
-                            color: '#ff6b35',
-                            weight: 4,
-                            opacity: 0.9,
-                            dashArray: '6, 4'
-                        }
-                    }).addTo(map);
                 }
-                seleccion.distrito = null;
-                seleccion.corregimiento = null;
+                document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
         }
 
         // ================================================================
-        // 13. MOSTRAR DATOS EN TABLA CON GRÁFICA SOCIOECONÓMICA
+        // 18. MOSTRAR DATOS EN TABLA
         // ================================================================
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
+            propsActuales = props;
+            tituloActual = titulo;
             
             // Determinar el nombre correcto según el nivel
             let nombre = '';
@@ -1105,16 +1506,24 @@
                 nombre = props.DIST_NOMB || 'Sin nombre';
             } else if (titulo === 'Corregimiento') {
                 nombre = props.CORR_NOMB || 'Sin nombre';
+            } else if (titulo === 'Lugar Poblado') {
+                nombre = props.LUPO_NOMB || 'Sin nombre';
+            } else if (titulo === 'Barrio') {
+                nombre = props.BARR_NOMB || 'Sin nombre';
             } else {
-                nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 'Sin nombre';
+                nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
+                        props.LUPO_NOMB || props.BARR_NOMB || 'Sin nombre';
             }
             
             // Campos que deben tener formato de código
-            const camposCodigo = ['PROV_ID', 'DIST_ID', 'CORR_ID', 'DIST_CODE', 'CORR_CODE'];
+            const camposCodigo = ['PROV_ID', 'DIST_ID', 'CORR_ID', 'LUPO_ID', 'BARR_ID', 
+                                 'DIST_CODE', 'CORR_CODE', 'LUPO_CODE', 'BARR_CODE'];
             
             const camposPrioritarios = [
                 'PROV_ID', 'PROV_NOMB', 'DIST_ID', 'DIST_NOMB', 'DIST_CODE',
                 'CORR_ID', 'CORR_NOMB', 'CORR_CODE',
+                'LUPO_ID', 'LUPO_CODE', 'LUPO_NOMB', 'LUPO_CATE', 'LUPO_TIPO',
+                'BARR_ID', 'BARR_NOMB', 'BARR_CODE',
                 'PROV_LEY', 'LEY_MOD_P', 'GACETA_P', 'GACE_MOD_P',
                 'PERIMETRO', 'AREA',
                 'N_PERSONAS', 'P_HOMBRES', 'P_MUJERES', 'MAYOR_18',
@@ -1129,7 +1538,18 @@
                 'V_DAMNI', 'V_INDIG', 'ID1'
             ];
 
-            let html = `<h4>📋 ${titulo}: ${nombre}</h4>`;
+            let html = `<h4>📋 ${titulo}: ${nombre}`;
+            
+            // Mostrar botón de gráfica si hay datos suficientes
+            const poblacion = parseFloat(props.N_PERSONAS) || 0;
+            const viviendas = parseFloat(props.N_VIVIENDA) || 0;
+            if (poblacion > 0 || viviendas > 0) {
+                html += ` <button class="btn-grafica-mini" onclick="abrirModal()">📊 Ver Gráfica</button>`;
+                document.getElementById('btn-grafica').style.display = 'block';
+            } else {
+                document.getElementById('btn-grafica').style.display = 'none';
+            }
+            html += `</h4>`;
             html += `<table>`;
 
             let tieneDatos = false;
@@ -1143,7 +1563,8 @@
                     if (camposCodigo.includes(campo)) {
                         let longitud = 2;
                         if (campo === 'DIST_CODE') longitud = 4;
-                        if (campo === 'CORR_CODE') longitud = 6;
+                        if (campo === 'CORR_CODE' || campo === 'LUPO_CODE') longitud = 6;
+                        if (campo === 'BARR_CODE') longitud = 8;
                         valor = formatearCodigo(valor, longitud);
                     } else if (campo === 'PERIMETRO') {
                         const num = parseFloat(valor);
@@ -1172,41 +1593,66 @@
 
             html += `</table>`;
 
-            // Agregar gráfica socioeconómica
-            if (tieneDatos) {
-                html += `<div class="chart-container">`;
-                html += `<div class="chart-title">📊 Indicadores Socioeconómicos</div>`;
-                html += `<canvas id="chart-indicadores"></canvas>`;
-                html += `</div>`;
-            }
-
             if (!tieneDatos) {
                 html = `<div class="sin-datos">No hay datos disponibles para esta área</div>`;
+                document.getElementById('btn-grafica').style.display = 'none';
             }
 
             container.innerHTML = html;
-
-            // Crear gráfica después de renderizar el HTML
-            setTimeout(() => {
-                if (tieneDatos) {
-                    crearGraficaSocioeconomica(props, titulo);
-                }
-            }, 100);
         }
 
         // ================================================================
-        // 14. CREAR GRÁFICA SOCIOECONÓMICA (VERSIÓN CORREGIDA)
+        // 19. MODAL PARA GRÁFICA
         // ================================================================
-        function crearGraficaSocioeconomica(props, titulo) {
-            const canvas = document.getElementById('chart-indicadores');
+        function abrirModal() {
+            if (!propsActuales) return;
+            
+            const modal = document.getElementById('modalGrafica');
+            modal.classList.add('active');
+            
+            const titulo = document.getElementById('modal-titulo');
+            const subtitulo = document.getElementById('modal-subtitulo');
+            
+            let nombre = '';
+            if (tituloActual === 'Provincia') {
+                nombre = propsActuales.PROV_NOMB || 'Sin nombre';
+            } else if (tituloActual === 'Distrito') {
+                nombre = propsActuales.DIST_NOMB || 'Sin nombre';
+            } else if (tituloActual === 'Corregimiento') {
+                nombre = propsActuales.CORR_NOMB || 'Sin nombre';
+            } else if (tituloActual === 'Lugar Poblado') {
+                nombre = propsActuales.LUPO_NOMB || 'Sin nombre';
+            } else if (tituloActual === 'Barrio') {
+                nombre = propsActuales.BARR_NOMB || 'Sin nombre';
+            }
+            
+            titulo.textContent = `📊 Indicadores Socioeconómicos - ${nombre}`;
+            subtitulo.textContent = `${tituloActual}: ${nombre}`;
+            
+            crearGraficaModal(propsActuales);
+        }
+
+        function cerrarModal() {
+            const modal = document.getElementById('modalGrafica');
+            modal.classList.remove('active');
+            if (chartModalInstance) {
+                chartModalInstance.destroy();
+                chartModalInstance = null;
+            }
+        }
+
+        // ================================================================
+        // 20. CREAR GRÁFICA EN MODAL
+        // ================================================================
+        function crearGraficaModal(props) {
+            const canvas = document.getElementById('modal-chart');
             if (!canvas) return;
             
-            if (chartIndicadoresInstance) {
-                chartIndicadoresInstance.destroy();
-                chartIndicadoresInstance = null;
+            if (chartModalInstance) {
+                chartModalInstance.destroy();
+                chartModalInstance = null;
             }
-        
-            // Calcular indicadores
+
             const poblacion = parseFloat(props.N_PERSONAS) || 0;
             const viviendas = parseFloat(props.N_VIVIENDA) || 0;
             const ocupadas = parseFloat(props.TOTA_VIV_P) || 0;
@@ -1215,30 +1661,20 @@
             const area = parseFloat(props.AREA) || 1;
             const desocupados = parseFloat(props.DESOCUP) || 0;
             const analfabetas = parseFloat(props.ANALFAB) || 0;
-            const mayores18 = parseFloat(props.MAYOR_18) || 0;
             const sinAgua = parseFloat(props.SIN_AGUA) || 0;
             const sinLuz = parseFloat(props.SIN_LUZ) || 0;
             const sinInternet = parseFloat(props.SIN_INTERN) || 0;
-        
-            // Calcular densidad (hab/km²)
+
             const areaKm2 = area / 1000000;
             const densidad = areaKm2 > 0 ? poblacion / areaKm2 : 0;
-        
-            // Calcular porcentaje de ocupación
             const pctOcupacion = viviendas > 0 ? (ocupadas / viviendas) * 100 : 0;
             const pctDesocupacion = viviendas > 0 ? ((viviendas - ocupadas) / viviendas) * 100 : 0;
-        
-            // Calcular porcentaje de hombres/mujeres
             const pctHombres = poblacion > 0 ? (hombres / poblacion) * 100 : 0;
             const pctMujeres = poblacion > 0 ? (mujeres / poblacion) * 100 : 0;
-        
-            // Calcular porcentaje de desocupados sobre la población total
             const pctDesocupados = poblacion > 0 ? (desocupados / poblacion) * 100 : 0;
-        
-            // Datos para la gráfica
+
             const datosGrafica = [];
             
-            // 1. Densidad poblacional - valor formateado para mostrar
             if (densidad > 0) {
                 datosGrafica.push({
                     label: 'Densidad (hab/km²)',
@@ -1248,8 +1684,7 @@
                     displayValue: Math.round(densidad).toLocaleString()
                 });
             }
-        
-            // 2. Ocupación de viviendas
+
             if (pctOcupacion > 0) {
                 datosGrafica.push({
                     label: 'Viviendas ocupadas',
@@ -1259,8 +1694,7 @@
                     displayValue: pctOcupacion.toFixed(1) + '%'
                 });
             }
-        
-            // 3. Desocupación de viviendas
+
             if (pctDesocupacion > 0) {
                 datosGrafica.push({
                     label: 'Viviendas desocupadas',
@@ -1270,28 +1704,27 @@
                     displayValue: pctDesocupacion.toFixed(1) + '%'
                 });
             }
-        
-            // 4. Distribución de género
+
             if (pctHombres > 0) {
                 datosGrafica.push({
-                    label: 'Hombres (%)',
+                    label: 'Hombres',
                     value: pctHombres,
                     color: '#17a2b8',
                     esPorcentaje: true,
                     displayValue: pctHombres.toFixed(1) + '%'
                 });
             }
+
             if (pctMujeres > 0) {
                 datosGrafica.push({
-                    label: 'Mujeres (%)',
+                    label: 'Mujeres',
                     value: pctMujeres,
                     color: '#e83e8c',
                     esPorcentaje: true,
                     displayValue: pctMujeres.toFixed(1) + '%'
                 });
             }
-        
-            // 5. Indicadores sociales (ya son porcentajes directos)
+
             if (analfabetas > 0 && analfabetas <= 100) {
                 datosGrafica.push({
                     label: 'Analfabetismo',
@@ -1301,7 +1734,7 @@
                     displayValue: analfabetas.toFixed(1) + '%'
                 });
             }
-        
+
             if (pctDesocupados > 0 && pctDesocupados <= 100) {
                 datosGrafica.push({
                     label: 'Desocupación laboral',
@@ -1311,7 +1744,7 @@
                     displayValue: pctDesocupados.toFixed(1) + '%'
                 });
             }
-        
+
             if (sinAgua > 0 && sinAgua <= 100) {
                 datosGrafica.push({
                     label: 'Sin agua potable',
@@ -1321,7 +1754,7 @@
                     displayValue: sinAgua.toFixed(1) + '%'
                 });
             }
-        
+
             if (sinLuz > 0 && sinLuz <= 100) {
                 datosGrafica.push({
                     label: 'Sin luz eléctrica',
@@ -1331,7 +1764,7 @@
                     displayValue: sinLuz.toFixed(1) + '%'
                 });
             }
-        
+
             if (sinInternet > 0 && sinInternet <= 100) {
                 datosGrafica.push({
                     label: 'Sin internet',
@@ -1341,24 +1774,23 @@
                     displayValue: sinInternet.toFixed(1) + '%'
                 });
             }
-        
-            // Si no hay datos, mostrar mensaje
+
             if (datosGrafica.length === 0) {
                 canvas.parentElement.innerHTML = `
-                    <div style="text-align:center;padding:10px;color:#888;font-size:9px;">
+                    <div style="text-align:center;padding:20px;color:#888;font-size:11px;">
                         No hay suficientes datos para mostrar indicadores
                     </div>
                 `;
                 return;
             }
-        
-            // Ordenar: primero valores absolutos, luego porcentajes de mayor a menor
+
+            // Ordenar: primero densidad, luego porcentajes de mayor a menor
             datosGrafica.sort((a, b) => {
                 if (a.esPorcentaje && !b.esPorcentaje) return 1;
                 if (!a.esPorcentaje && b.esPorcentaje) return -1;
                 return b.value - a.value;
             });
-        
+
             const ctx = canvas.getContext('2d');
             
             const labels = datosGrafica.map(d => d.label);
@@ -1366,8 +1798,8 @@
             const colors = datosGrafica.map(d => d.color);
             const esPorcentaje = datosGrafica.map(d => d.esPorcentaje);
             const displayValues = datosGrafica.map(d => d.displayValue);
-        
-            chartIndicadoresInstance = new Chart(ctx, {
+
+            chartModalInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
@@ -1400,9 +1832,8 @@
                         x: {
                             beginAtZero: true,
                             ticks: {
-                                font: { size: 8 },
+                                font: { size: 10 },
                                 callback: function(value) {
-                                    // Si el valor es mayor a 100, no mostrar como porcentaje
                                     if (value > 100) {
                                         return value.toLocaleString();
                                     }
@@ -1412,7 +1843,7 @@
                         },
                         y: {
                             ticks: {
-                                font: { size: 8 }
+                                font: { size: 10 }
                             }
                         }
                     }
@@ -1421,7 +1852,7 @@
         }
 
         // ================================================================
-        // 15. EXPORTAR
+        // 21. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!capaActual) {
@@ -1443,7 +1874,11 @@
         function exportarCSV() {
             let props = null;
             
-            if (seleccion.corregimiento) {
+            if (seleccion.barrio) {
+                props = seleccion.barrio;
+            } else if (seleccion.lugar) {
+                props = seleccion.lugar;
+            } else if (seleccion.corregimiento) {
                 props = seleccion.corregimiento;
             } else if (seleccion.distrito) {
                 props = seleccion.distrito;
@@ -1459,12 +1894,14 @@
             const headers = Object.keys(props);
             const values = headers.map(h => {
                 let val = props[h];
-                if (['PROV_ID', 'DIST_ID', 'CORR_ID'].includes(h)) {
+                if (['PROV_ID', 'DIST_ID', 'CORR_ID', 'LUPO_ID', 'BARR_ID'].includes(h)) {
                     val = formatearCodigo(val, 2);
                 } else if (h === 'DIST_CODE') {
                     val = formatearCodigo(val, 4);
-                } else if (h === 'CORR_CODE') {
+                } else if (h === 'CORR_CODE' || h === 'LUPO_CODE') {
                     val = formatearCodigo(val, 6);
+                } else if (h === 'BARR_CODE') {
+                    val = formatearCodigo(val, 8);
                 } else if (h === 'PERIMETRO' && !isNaN(parseFloat(val))) {
                     val = (parseFloat(val) / 1000).toFixed(2);
                 } else if (h === 'AREA' && !isNaN(parseFloat(val))) {
@@ -1485,7 +1922,7 @@
         }
 
         // ================================================================
-        // 16. MAPA BASE
+        // 22. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -1497,34 +1934,27 @@
         }
 
         // ================================================================
-        // 17. RESET
+        // 23. RESET
         // ================================================================
         function resetearMapa() {
             historial = ['provincias'];
             document.getElementById('btn-back').style.display = 'none';
             
             document.getElementById('selector-provincia').selectedIndex = 0;
-            document.getElementById('selector-distrito').innerHTML = '<option value="">Seleccionar distrito...</option>';
-            document.getElementById('selector-corregimiento').innerHTML = '<option value="">Seleccionar corregimiento...</option>';
-            document.getElementById('selector-distrito').disabled = true;
-            document.getElementById('selector-corregimiento').disabled = true;
-            document.getElementById('wrapper-distrito').style.display = 'none';
-            document.getElementById('wrapper-corregimiento').style.display = 'none';
+            resetearSelectoresHijos();
             
             seleccion.provincia = null;
             seleccion.distrito = null;
             seleccion.corregimiento = null;
+            seleccion.lugar = null;
+            seleccion.barrio = null;
             
             if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
-            
-            if (chartIndicadoresInstance) {
-                chartIndicadoresInstance.destroy();
-                chartIndicadoresInstance = null;
-            }
 
             mostrarNivel('provincias');
+            document.getElementById('btn-grafica').style.display = 'none';
             
             document.getElementById('info-content').innerHTML = `
                 <div class="sin-datos">
@@ -1536,18 +1966,22 @@
         }
 
         // ================================================================
-        // 18. INICIO
+        // 24. INICIO
         // ================================================================
         window.cambiarMapa = cambiarMapa;
         window.cambiarProvincia = cambiarProvincia;
         window.cambiarDistrito = cambiarDistrito;
         window.cambiarCorregimiento = cambiarCorregimiento;
+        window.cambiarLugar = cambiarLugar;
+        window.cambiarBarrio = cambiarBarrio;
         window.volverNivel = volverNivel;
         window.exportarGeoJSON = exportarGeoJSON;
         window.exportarCSV = exportarCSV;
         window.resetearMapa = resetearMapa;
+        window.abrirModal = abrirModal;
+        window.cerrarModal = cerrarModal;
 
-        console.log('🗺️ Panamá - División Administrativa');
+        console.log('🗺️ Panamá - División Administrativa Completa');
         console.log('📌 Cargando datos...');
 
         cargarTodosLosDatos();
