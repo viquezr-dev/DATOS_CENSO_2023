@@ -15,6 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     
     <style>
+        /* ============================================================
+           TODOS TUS ESTILOS AQUÍ (los que ya tenías)
+           ============================================================ */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; }
         #map { height: 100vh; width: 100%; }
@@ -682,7 +685,7 @@
         };
 
         // ================================================================
-        // 5. FUNCIÓN AGREGAR ETIQUETAS (DEBE ESTAR ANTES DE mostrarNivel)
+        // 5. FUNCIÓN AGREGAR ETIQUETAS
         // ================================================================
         function agregarEtiquetas(features) {
             if (typeof turf === 'undefined') return;
@@ -721,7 +724,7 @@
         }
 
         // ================================================================
-        // 6. MOSTRAR EN MAPA (CON TOOLTIPS Y JERARQUÍA CORREGIDA)
+        // 6. MOSTRAR EN MAPA (CON TOOLTIPS Y JERARQUÍA)
         // ================================================================
         function mostrarNivel(nivel, filtroId = null) {
             if (historial[historial.length - 1] !== nivel) {
@@ -737,14 +740,14 @@
             };
             document.getElementById('badge-nivel').textContent = nombres[nivel] || nivel;
             document.getElementById('btn-back').style.display = historial.length > 1 ? 'block' : 'none';
-        
+
             if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
-        
+
             let features = [];
             let titulo = '';
-        
+
             if (nivel === 'provincias') {
                 features = datos.provincias?.features || [];
                 titulo = 'Provincias';
@@ -788,18 +791,18 @@
                 titulo = 'Barrios';
                 nivelActual = 'barrios';
             }
-        
+
             if (features.length === 0) {
                 console.log(`No hay ${titulo} para mostrar`);
                 return;
             }
-        
+
             const validas = features.filter(f => f.geometry && f.geometry.type);
             if (validas.length === 0) {
                 console.log(`Ningún ${titulo} tiene geometría válida`);
                 return;
             }
-        
+
             capaActual = L.geoJSON({
                 type: 'FeatureCollection',
                 features: validas
@@ -852,7 +855,7 @@
                     }
                     
                     // ============================================================
-                    // TOOLTIP - NOMBRE AL PASAR EL MOUSE (CON EL TIPO)
+                    // TOOLTIP - NOMBRE AL PASAR EL MOUSE
                     // ============================================================
                     const textoTooltip = tipo ? `${tipo}: ${nombre}` : nombre;
                     
@@ -867,7 +870,6 @@
                     // Abrir tooltip al pasar el mouse
                     layer.on('mouseover', function(e) {
                         this.openTooltip();
-                        // Resaltar el polígono
                         this.setStyle({
                             fillOpacity: 0.5,
                             weight: 3.5
@@ -877,7 +879,6 @@
                     // Cerrar tooltip al salir
                     layer.on('mouseout', function(e) {
                         this.closeTooltip();
-                        // Volver al estilo normal
                         const color = colorProvinciaSeleccionada || 
                                      colores[Object.keys(layer._layers || {}).length % colores.length];
                         this.setStyle({
@@ -887,7 +888,7 @@
                     });
                     
                     // ============================================================
-                    // CLICK - Seleccionar el elemento (JERARQUÍA)
+                    // CLICK - Seleccionar el elemento
                     // ============================================================
                     layer.on('click', function() {
                         if (nivel === 'provincias') {
@@ -939,18 +940,96 @@
                     });
                 }
             }).addTo(map);
-        
-            // Solo mostrar etiquetas para provincias
+
             if (nivel === 'provincias' && typeof turf !== 'undefined') {
                 agregarEtiquetas(validas);
             }
-        
+
             const bounds = L.geoJSON({ type: 'FeatureCollection', features: validas }).getBounds();
             if (bounds.isValid()) {
                 map.fitBounds(bounds, { padding: [30, 30] });
             }
-        
+
             console.log(`✅ ${validas.length} ${titulo} mostrados`);
+        }
+
+        // ================================================================
+        // 7. CARGA DE DATOS
+        // ================================================================
+        function actualizarProgress() {
+            const pct = Math.round((datosCargados / totalArchivos) * 100);
+            document.getElementById('progress-bar').style.width = pct + '%';
+        }
+
+        async function cargarGeoJSON(tipo, url) {
+            try {
+                console.log(`Cargando ${tipo} desde ${url}...`);
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                datos[tipo] = data;
+                datosCargados++;
+                actualizarProgress();
+                console.log(`✅ ${tipo} cargado: ${data.features.length} registros`);
+                return data;
+            } catch (error) {
+                console.warn(`⚠️ Error cargando ${tipo}: ${error.message}`);
+                datosCargados++;
+                actualizarProgress();
+                return null;
+            }
+        }
+
+        async function cargarTodosLosDatos() {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+            document.getElementById('progress-bar').style.width = '0%';
+
+            await Promise.all([
+                cargarGeoJSON('provincias', 'provincias.geojson'),
+                cargarGeoJSON('distritos', 'distritos.geojson'),
+                cargarGeoJSON('corregimientos', 'corregimientos.geojson'),
+                cargarGeoJSON('poblados', 'poblados.geojson'),
+                cargarGeoJSON('barrios', 'barrios.geojson')
+            ]);
+
+            if (!datos.provincias) {
+                loading.innerHTML = `
+                    <div class="title" style="color:#dc3545;">❌ Error</div>
+                    <div class="subtitle">No se pudo cargar provincias.geojson</div>
+                    <button onclick="location.reload()" style="margin-top:12px;padding:8px 24px;border:none;background:#2c6b9e;color:white;border-radius:6px;cursor:pointer;font-size:12px;">
+                        🔄 Reintentar
+                    </button>
+                `;
+                return;
+            }
+
+            // Poblar selector de provincias
+            const selectProv = document.getElementById('selector-provincia');
+            selectProv.innerHTML = '<option value="">Seleccionar provincia...</option>';
+            
+            const features = datos.provincias.features;
+            features.sort((a, b) => {
+                const nomA = a.properties.PROV_NOMB || '';
+                const nomB = b.properties.PROV_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            features.forEach((f) => {
+                const nombre = f.properties.PROV_NOMB || 'Sin nombre';
+                const id = f.properties.PROV_ID || '';
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                selectProv.appendChild(option);
+            });
+
+            mostrarNivel('provincias');
+
+            loading.style.display = 'none';
+            document.getElementById('badge-nivel').textContent = 'Provincias';
+            console.log('✅ Carga completada');
         }
 
         // ================================================================
