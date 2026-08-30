@@ -300,18 +300,21 @@
         }
 
         .leaflet-tooltip.provincia-tooltip {
-            background: rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
-            padding: 4px 12px;
-            border-radius: 4px;
-            border: none;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            white-space: nowrap;
         }
+        
         .leaflet-tooltip.provincia-tooltip::before {
-            border-top-color: rgba(0,0,0,0.8);
+            border-top-color: rgba(0, 0, 0, 0.8);
         }
 
         /* Modal para gráfica */
@@ -576,7 +579,8 @@
             poblados: null,
             barrios: null
         };
-
+        
+        let colorProvinciaSeleccionada = null;
         let capaActual = null;
         let capaResaltado = null;
         let capaEtiquetas = null;
@@ -585,6 +589,7 @@
         let chartModalInstance = null;
         let propsActuales = null;
         let tituloActual = '';
+        
 
         let seleccion = {
             provincia: null,
@@ -837,10 +842,19 @@
                 features: validas
             }, {
                 style: function(feature, index) {
-                    const idx = index % colores.length;
+                    // Si hay una provincia seleccionada, usar su color
+                    // Si no, usar los colores de la paleta
+                    let color;
+                    if (colorProvinciaSeleccionada) {
+                        color = colorProvinciaSeleccionada;
+                    } else {
+                        const idx = index % colores.length;
+                        color = colores[idx];
+                    }
+                    
                     return {
-                        fillColor: '#2c6b9e',
-                        fillOpacity: 0.35,
+                        fillColor: color,
+                        fillOpacity: 0.3,
                         color: '#000000',
                         weight: 2.5,
                         opacity: 0.9
@@ -851,6 +865,7 @@
                     let nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
                                 props.LUPO_NOMB || props.BARR_NOMB || 'Área';
                     
+                    // Tooltip al pasar el mouse
                     layer.bindTooltip(nombre, { 
                         permanent: false, 
                         direction: 'center',
@@ -966,6 +981,7 @@
             resetearSelectoresHijos();
             
             if (!value) {
+                colorProvinciaSeleccionada = null;
                 mostrarNivel('provincias');
                 document.getElementById('info-content').innerHTML = `
                     <div class="sin-datos">
@@ -986,6 +1002,9 @@
 
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
+            const idx = select.selectedIndex - 1; // -1 por el option "Seleccionar"
+            colorProvinciaSeleccionada = colores[idx % colores.length]; 
+            
             seleccion.provincia = props;
             seleccion.distrito = null;
             seleccion.corregimiento = null;
@@ -2193,6 +2212,7 @@
         // 23. RESET
         // ================================================================
         function resetearMapa() {
+            colorProvinciaSeleccionada = null
             historial = ['provincias'];
             document.getElementById('btn-back').style.display = 'none';
             
