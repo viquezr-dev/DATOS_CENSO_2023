@@ -449,6 +449,15 @@
         .leaflet-tooltip.provincia-tooltip::before {
             border-top-color: rgba(0, 0, 0, 0.85) !important;
         }
+
+        /* Asegurar tooltips visibles */
+        .leaflet-tooltip-pane {
+            z-index: 1500 !important;
+        }
+        
+        .leaflet-tooltip {
+            z-index: 1500 !important;
+        }
     </style>
 </head>
 <body>
