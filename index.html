@@ -425,6 +425,30 @@
             .modal-content canvas { max-height: 250px; }
             .modal-content .densidad-modal .valor { font-size: 14px; }
         }
+
+        /* Asegurar que los tooltips estén visibles */
+        .leaflet-tooltip {
+            z-index: 1500 !important;
+        }
+        
+        .leaflet-tooltip.provincia-tooltip {
+            background: rgba(0, 0, 0, 0.85) !important;
+            color: white !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            padding: 8px 16px !important;
+            border-radius: 8px !important;
+            border: 2px solid rgba(255, 255, 255, 0.4) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+            pointer-events: none !important;
+            white-space: nowrap !important;
+            z-index: 1500 !important;
+        }
+        
+        .leaflet-tooltip.provincia-tooltip::before {
+            border-top-color: rgba(0, 0, 0, 0.85) !important;
+        }
     </style>
 </head>
 <body>
