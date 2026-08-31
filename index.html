@@ -15,9 +15,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     
     <style>
-        /* ============================================================
-           TODOS TUS ESTILOS AQUÍ (los que ya tenías)
-           ============================================================ */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; }
         #map { height: 100vh; width: 100%; }
@@ -105,7 +102,7 @@
         }
         .btn-group button { 
             flex: 1; 
-            min-width: 35px;
+            min-width: 55px;
             padding: 5px 8px; 
             border-radius: 6px; 
             border: none; 
@@ -433,6 +430,7 @@
             .modal-content { padding: 16px; }
             .modal-content canvas { max-height: 250px; }
             .modal-content .densidad-modal .valor { font-size: 14px; }
+            .btn-group button { min-width: 40px; font-size: 7px; }
         }
     </style>
 </head>
@@ -475,9 +473,11 @@
 
         <label>🗺️ Mapa base:</label>
         <div class="btn-group">
-            <button class="btn-map active" onclick="cambiarMapa('satellite')" id="btn-satellite">🛰️</button>
-            <button class="btn-map" onclick="cambiarMapa('osm')" id="btn-osm">🌍</button>
-            <button class="btn-map" onclick="cambiarMapa('topo')" id="btn-topo">🗺️</button>
+            <button class="btn-map active" onclick="cambiarMapa('satellite')" id="btn-satellite">🛰️ Satélite</button>
+            <button class="btn-map" onclick="cambiarMapa('street')" id="btn-street">🌍 Callejero</button>
+            <button class="btn-map" onclick="cambiarMapa('topo')" id="btn-topo">🏔️ Topográfico</button>
+            <button class="btn-map" onclick="cambiarMapa('carto')" id="btn-carto">🗺️ Claro</button>
+            <button class="btn-map" onclick="cambiarMapa('dark')" id="btn-dark">🌙 Oscuro</button>
         </div>
 
         <!-- SELECTOR 1: PROVINCIA -->
@@ -566,13 +566,21 @@
                     maxZoom: 19
                 }
             ),
-            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors',
                 maxZoom: 19
             }),
             topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenTopoMap',
                 maxZoom: 17
+            }),
+            carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CartoDB',
+                maxZoom: 19
+            }),
+            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CartoDB',
+                maxZoom: 19
             })
         };
 
@@ -751,7 +759,101 @@
         }
 
         // ================================================================
-        // 6. MOSTRAR EN MAPA (CON TOOLTIPS Y JERARQUÍA)
+        // 6. MOSTRAR UN POLÍGONO ÚNICO
+        // ================================================================
+        function mostrarPoligonoUnico(feature) {
+            if (!feature) return;
+            
+            if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
+            if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
+            
+            if (!feature.geometry || !feature.geometry.type) {
+                console.log('El feature no tiene geometría válida');
+                return;
+            }
+            
+            capaActual = L.geoJSON(feature, {
+                style: function() {
+                    let color;
+                    if (colorProvinciaSeleccionada) {
+                        color = colorProvinciaSeleccionada;
+                    } else {
+                        color = colores[0];
+                    }
+                    
+                    return {
+                        fillColor: color,
+                        fillOpacity: 0.3,
+                        color: '#000000',
+                        weight: 2.5,
+                        opacity: 0.9
+                    };
+                },
+                onEachFeature: function(f, layer) {
+                    const props = f.properties;
+                    
+                    let nombre = '';
+                    let tipo = '';
+                    
+                    if (nivelActual === 'provincias') {
+                        nombre = props.PROV_NOMB || 'Provincia';
+                        tipo = 'Provincia';
+                    } else if (nivelActual === 'distritos') {
+                        nombre = props.DIST_NOMB || 'Distrito';
+                        tipo = 'Distrito';
+                    } else if (nivelActual === 'corregimientos') {
+                        nombre = props.CORR_NOMB || 'Corregimiento';
+                        tipo = 'Corregimiento';
+                    } else if (nivelActual === 'poblados') {
+                        nombre = props.LUPO_NOMB || 'Poblado';
+                        tipo = 'Poblado';
+                    } else if (nivelActual === 'barrios') {
+                        nombre = props.BARR_NOMB || 'Barrio';
+                        tipo = 'Barrio';
+                    } else {
+                        nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
+                                props.LUPO_NOMB || props.BARR_NOMB || 'Área';
+                        tipo = '';
+                    }
+                    
+                    const textoTooltip = tipo ? `${tipo}: ${nombre}` : nombre;
+                    
+                    layer.bindTooltip(textoTooltip, { 
+                        permanent: false, 
+                        direction: 'center',
+                        className: 'provincia-tooltip',
+                        offset: [0, -10],
+                        opacity: 0.95
+                    });
+                    
+                    layer.on('mouseover', function(e) {
+                        this.openTooltip();
+                        this.setStyle({
+                            fillOpacity: 0.5,
+                            weight: 3.5
+                        });
+                    });
+                    
+                    layer.on('mouseout', function(e) {
+                        this.closeTooltip();
+                        this.setStyle({
+                            fillOpacity: 0.3,
+                            weight: 2.5
+                        });
+                    });
+                }
+            }).addTo(map);
+            
+            const bounds = L.geoJSON(feature).getBounds();
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+            }
+            
+            console.log(`✅ Mostrando ${tipo}: ${nombre}`);
+        }
+
+        // ================================================================
+        // 7. MOSTRAR NIVEL COMPLETO (para reset y volver)
         // ================================================================
         function mostrarNivel(nivel, filtroId = null) {
             if (historial[historial.length - 1] !== nivel) {
@@ -854,9 +956,6 @@
                 onEachFeature: function(f, layer) {
                     const props = f.properties;
                     
-                    // ============================================================
-                    // DETERMINAR EL NOMBRE SEGÚN EL NIVEL ACTUAL
-                    // ============================================================
                     let nombre = '';
                     let tipo = '';
                     
@@ -881,9 +980,6 @@
                         tipo = '';
                     }
                     
-                    // ============================================================
-                    // TOOLTIP - NOMBRE AL PASAR EL MOUSE
-                    // ============================================================
                     const textoTooltip = tipo ? `${tipo}: ${nombre}` : nombre;
                     
                     layer.bindTooltip(textoTooltip, { 
@@ -894,7 +990,6 @@
                         opacity: 0.95
                     });
                     
-                    // Abrir tooltip al pasar el mouse
                     layer.on('mouseover', function(e) {
                         this.openTooltip();
                         this.setStyle({
@@ -903,7 +998,6 @@
                         });
                     });
                     
-                    // Cerrar tooltip al salir
                     layer.on('mouseout', function(e) {
                         this.closeTooltip();
                         const color = colorProvinciaSeleccionada || 
@@ -914,9 +1008,6 @@
                         });
                     });
                     
-                    // ============================================================
-                    // CLICK - Seleccionar el elemento
-                    // ============================================================
                     layer.on('click', function() {
                         if (nivel === 'provincias') {
                             const select = document.getElementById('selector-provincia');
@@ -981,105 +1072,7 @@
         }
 
         // ================================================================
-        // MOSTRAR UN POLÍGONO ÚNICO (para provincia, distrito, corregimiento, etc.)
-        // ================================================================
-        function mostrarPoligonoUnico(feature) {
-            if (!feature) return;
-            
-            if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
-            if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
-            
-            // Verificar que la geometría sea válida
-            if (!feature.geometry || !feature.geometry.type) {
-                console.log('El feature no tiene geometría válida');
-                return;
-            }
-            
-            capaActual = L.geoJSON(feature, {
-                style: function() {
-                    let color;
-                    if (colorProvinciaSeleccionada) {
-                        color = colorProvinciaSeleccionada;
-                    } else {
-                        color = colores[0];
-                    }
-                    
-                    return {
-                        fillColor: color,
-                        fillOpacity: 0.3,
-                        color: '#000000',
-                        weight: 2.5,
-                        opacity: 0.9
-                    };
-                },
-                onEachFeature: function(f, layer) {
-                    const props = f.properties;
-                    
-                    // Determinar el nombre según el nivel
-                    let nombre = '';
-                    let tipo = '';
-                    
-                    if (nivelActual === 'provincias') {
-                        nombre = props.PROV_NOMB || 'Provincia';
-                        tipo = 'Provincia';
-                    } else if (nivelActual === 'distritos') {
-                        nombre = props.DIST_NOMB || 'Distrito';
-                        tipo = 'Distrito';
-                    } else if (nivelActual === 'corregimientos') {
-                        nombre = props.CORR_NOMB || 'Corregimiento';
-                        tipo = 'Corregimiento';
-                    } else if (nivelActual === 'poblados') {
-                        nombre = props.LUPO_NOMB || 'Poblado';
-                        tipo = 'Poblado';
-                    } else if (nivelActual === 'barrios') {
-                        nombre = props.BARR_NOMB || 'Barrio';
-                        tipo = 'Barrio';
-                    } else {
-                        nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
-                                props.LUPO_NOMB || props.BARR_NOMB || 'Área';
-                        tipo = '';
-                    }
-                    
-                    const textoTooltip = tipo ? `${tipo}: ${nombre}` : nombre;
-                    
-                    layer.bindTooltip(textoTooltip, { 
-                        permanent: false, 
-                        direction: 'center',
-                        className: 'provincia-tooltip',
-                        offset: [0, -10],
-                        opacity: 0.95
-                    });
-                    
-                    layer.on('mouseover', function(e) {
-                        this.openTooltip();
-                        this.setStyle({
-                            fillOpacity: 0.5,
-                            weight: 3.5
-                        });
-                    });
-                    
-                    layer.on('mouseout', function(e) {
-                        this.closeTooltip();
-                        this.setStyle({
-                            fillOpacity: 0.3,
-                            weight: 2.5
-                        });
-                    });
-                }
-            }).addTo(map);
-            
-            // Hacer zoom al polígono
-            const bounds = L.geoJSON(feature).getBounds();
-            if (bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
-            }
-            
-            console.log(`✅ Mostrando ${tipo}: ${nombre}`);
-        }
-        
-        
-        // ================================================================
-        // 7. CARGA DE DATOS
+        // 8. CARGA DE DATOS
         // ================================================================
         function actualizarProgress() {
             const pct = Math.round((datosCargados / totalArchivos) * 100);
@@ -1158,7 +1151,212 @@
         }
 
         // ================================================================
-        // 8. CAMBIAR PROVINCIA
+        // 9. RESETEAR SELECTORES HIJOS
+        // ================================================================
+        function resetearSelectoresHijos() {
+            const ids = ['distrito', 'corregimiento', 'poblado', 'barrio'];
+            const wrappers = ['wrapper-distrito', 'wrapper-corregimiento', 'wrapper-poblado', 'wrapper-barrio'];
+            
+            ids.forEach(id => {
+                const select = document.getElementById('selector-' + id);
+                if (select) {
+                    select.innerHTML = '<option value="">Seleccionar ' + id + '...</option>';
+                    select.disabled = true;
+                }
+            });
+            
+            wrappers.forEach(id => {
+                const wrapper = document.getElementById(id);
+                if (wrapper) wrapper.style.display = 'none';
+            });
+        }
+
+        // ================================================================
+        // 10. CARGAR DISTRITOS EN SELECTOR (SOLO SELECTOR)
+        // ================================================================
+        function cargarDistritosEnSelector(provId) {
+            const selectDist = document.getElementById('selector-distrito');
+            const wrapperDist = document.getElementById('wrapper-distrito');
+            
+            const distritos = datos.distritos.features.filter(f => {
+                const p = f.properties;
+                return p.PROV_ID === provId;
+            });
+
+            if (distritos.length === 0) {
+                selectDist.innerHTML = '<option value="">No hay distritos disponibles</option>';
+                selectDist.disabled = true;
+                wrapperDist.style.display = 'block';
+                return;
+            }
+
+            selectDist.innerHTML = '<option value="">Seleccionar distrito...</option>';
+            
+            distritos.sort((a, b) => {
+                const nomA = a.properties.DIST_NOMB || '';
+                const nomB = b.properties.DIST_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            distritos.forEach(f => {
+                const nombre = f.properties.DIST_NOMB || 'Sin nombre';
+                const distCode = f.properties.DIST_CODE || (f.properties.PROV_ID + f.properties.DIST_ID);
+                const id = formatearCodigo(distCode, 4);
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                selectDist.appendChild(option);
+            });
+
+            selectDist.disabled = false;
+            wrapperDist.style.display = 'block';
+        }
+
+        // ================================================================
+        // 11. CARGAR CORREGIMIENTOS EN SELECTOR (SOLO SELECTOR)
+        // ================================================================
+        function cargarCorregimientosEnSelector(distCode) {
+            const selectCorr = document.getElementById('selector-corregimiento');
+            const wrapperCorr = document.getElementById('wrapper-corregimiento');
+            
+            const distCodeFormateado = formatearCodigo(distCode, 4);
+            
+            const corregimientos = datos.corregimientos.features.filter(f => {
+                const p = f.properties;
+                const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
+                return corrCode.substring(0, 4) === distCodeFormateado;
+            });
+
+            if (corregimientos.length === 0) {
+                selectCorr.innerHTML = '<option value="">No hay corregimientos disponibles</option>';
+                selectCorr.disabled = true;
+                wrapperCorr.style.display = 'block';
+                return;
+            }
+
+            selectCorr.innerHTML = '<option value="">Seleccionar corregimiento...</option>';
+            
+            corregimientos.sort((a, b) => {
+                const nomA = a.properties.CORR_NOMB || '';
+                const nomB = b.properties.CORR_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            corregimientos.forEach(f => {
+                const nombre = f.properties.CORR_NOMB || 'Sin nombre';
+                const corrCode = f.properties.CORR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID);
+                const id = formatearCodigo(corrCode, 6);
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                selectCorr.appendChild(option);
+            });
+
+            selectCorr.disabled = false;
+            wrapperCorr.style.display = 'block';
+        }
+
+        // ================================================================
+        // 12. CARGAR POBLADOS EN SELECTOR (SOLO SELECTOR)
+        // ================================================================
+        function cargarPobladosEnSelector(corrCode) {
+            const selectPoblado = document.getElementById('selector-poblado');
+            const wrapperPoblado = document.getElementById('wrapper-poblado');
+            
+            const corrCodeFormateado = formatearCodigo(corrCode, 6);
+            
+            if (!datos.poblados) {
+                selectPoblado.innerHTML = '<option value="">No hay poblados disponibles</option>';
+                selectPoblado.disabled = true;
+                wrapperPoblado.style.display = 'block';
+                return;
+            }
+            
+            const poblados = datos.poblados.features.filter(f => {
+                const p = f.properties;
+                const lupoCode = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
+                return lupoCode.substring(0, 6) === corrCodeFormateado;
+            });
+
+            if (poblados.length === 0) {
+                selectPoblado.innerHTML = '<option value="">No hay poblados disponibles</option>';
+                selectPoblado.disabled = true;
+                wrapperPoblado.style.display = 'block';
+                return;
+            }
+
+            selectPoblado.innerHTML = '<option value="">Seleccionar poblado...</option>';
+            
+            poblados.sort((a, b) => {
+                const nomA = a.properties.LUPO_NOMB || '';
+                const nomB = b.properties.LUPO_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            poblados.forEach(f => {
+                const nombre = f.properties.LUPO_NOMB || 'Sin nombre';
+                const lupoCode = f.properties.LUPO_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID);
+                const id = formatearCodigo(lupoCode, 9);
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                selectPoblado.appendChild(option);
+            });
+
+            selectPoblado.disabled = false;
+            wrapperPoblado.style.display = 'block';
+        }
+
+        // ================================================================
+        // 13. CARGAR BARRIOS EN SELECTOR (SOLO SELECTOR)
+        // ================================================================
+        function cargarBarriosEnSelector(lupoCode) {
+            const selectBarrio = document.getElementById('selector-barrio');
+            const wrapperBarrio = document.getElementById('wrapper-barrio');
+            
+            const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
+            
+            const barrios = datos.barrios.features.filter(f => {
+                const p = f.properties;
+                const barrioCode = p.BARR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID + p.BARR_ID);
+                return barrioCode.substring(0, 9) === lupoCodeFormateado;
+            });
+
+            if (barrios.length === 0) {
+                selectBarrio.innerHTML = '<option value="">No hay barrios disponibles</option>';
+                selectBarrio.disabled = true;
+                wrapperBarrio.style.display = 'block';
+                return;
+            }
+
+            selectBarrio.innerHTML = '<option value="">Seleccionar barrio...</option>';
+            
+            barrios.sort((a, b) => {
+                const nomA = a.properties.BARR_NOMB || '';
+                const nomB = b.properties.BARR_NOMB || '';
+                return nomA.localeCompare(nomB);
+            });
+            
+            barrios.forEach(f => {
+                const nombre = f.properties.BARR_NOMB || 'Sin nombre';
+                const barrioCode = f.properties.BARR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID + f.properties.BARR_ID);
+                const id = formatearCodigo(barrioCode, 12);
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = nombre;
+                option.dataset.feature = JSON.stringify(f);
+                selectBarrio.appendChild(option);
+            });
+
+            selectBarrio.disabled = false;
+            wrapperBarrio.style.display = 'block';
+        }
+
+        // ================================================================
+        // 14. CAMBIAR PROVINCIA
         // ================================================================
         function cambiarProvincia() {
             const select = document.getElementById('selector-provincia');
@@ -1197,12 +1395,10 @@
             seleccion.poblado = null;
             seleccion.barrio = null;
             
-            mostrarDatosTabla(props, 'Provincia');
+            nivelActual = 'provincias';
             
-            // ============================================================
-            // CAMBIO: Mostrar SOLO la provincia seleccionada (no todos los distritos)
-            // ============================================================
-            mostrarPoligonoUnico(feature);  // ← Nueva función
+            mostrarDatosTabla(props, 'Provincia');
+            mostrarPoligonoUnico(feature);
             
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             capaResaltado = L.geoJSON(feature, {
@@ -1214,210 +1410,14 @@
                     dashArray: '6, 4'
                 }
             }).addTo(map);
-        
-            // Cargar distritos en el selector (pero NO en el mapa)
+
             if (datos.distritos) {
                 cargarDistritosEnSelector(props.PROV_ID);
             }
         }
 
         // ================================================================
-        // 9. RESETEAR SELECTORES HIJOS
-        // ================================================================
-        function resetearSelectoresHijos() {
-            const ids = ['distrito', 'corregimiento', 'poblado', 'barrio'];
-            const wrappers = ['wrapper-distrito', 'wrapper-corregimiento', 'wrapper-poblado', 'wrapper-barrio'];
-            
-            ids.forEach(id => {
-                const select = document.getElementById('selector-' + id);
-                if (select) {
-                    select.innerHTML = '<option value="">Seleccionar ' + id + '...</option>';
-                    select.disabled = true;
-                }
-            });
-            
-            wrappers.forEach(id => {
-                const wrapper = document.getElementById(id);
-                if (wrapper) wrapper.style.display = 'none';
-            });
-        }
-
-        // ================================================================
-        // 10. CARGAR DISTRITOS
-        // ================================================================
-        function cargarDistritosEnSelector(provId) {
-            const selectDist = document.getElementById('selector-distrito');
-            const wrapperDist = document.getElementById('wrapper-distrito');
-            
-            const distritos = datos.distritos.features.filter(f => {
-                const p = f.properties;
-                return p.PROV_ID === provId;
-            });
-        
-            if (distritos.length === 0) {
-                selectDist.innerHTML = '<option value="">No hay distritos disponibles</option>';
-                selectDist.disabled = true;
-                wrapperDist.style.display = 'block';
-                return;
-            }
-        
-            selectDist.innerHTML = '<option value="">Seleccionar distrito...</option>';
-            
-            distritos.sort((a, b) => {
-                const nomA = a.properties.DIST_NOMB || '';
-                const nomB = b.properties.DIST_NOMB || '';
-                return nomA.localeCompare(nomB);
-            });
-            
-            distritos.forEach(f => {
-                const nombre = f.properties.DIST_NOMB || 'Sin nombre';
-                const distCode = f.properties.DIST_CODE || (f.properties.PROV_ID + f.properties.DIST_ID);
-                const id = formatearCodigo(distCode, 4);
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = nombre;
-                option.dataset.feature = JSON.stringify(f);
-                selectDist.appendChild(option);
-            });
-        
-            selectDist.disabled = false;
-            wrapperDist.style.display = 'block';
-        }
-        
-        function cargarCorregimientosEnSelector(distCode) {
-            const selectCorr = document.getElementById('selector-corregimiento');
-            const wrapperCorr = document.getElementById('wrapper-corregimiento');
-            
-            const distCodeFormateado = formatearCodigo(distCode, 4);
-            
-            const corregimientos = datos.corregimientos.features.filter(f => {
-                const p = f.properties;
-                const corrCode = p.CORR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID);
-                return corrCode.substring(0, 4) === distCodeFormateado;
-            });
-        
-            if (corregimientos.length === 0) {
-                selectCorr.innerHTML = '<option value="">No hay corregimientos disponibles</option>';
-                selectCorr.disabled = true;
-                wrapperCorr.style.display = 'block';
-                return;
-            }
-        
-            selectCorr.innerHTML = '<option value="">Seleccionar corregimiento...</option>';
-            
-            corregimientos.sort((a, b) => {
-                const nomA = a.properties.CORR_NOMB || '';
-                const nomB = b.properties.CORR_NOMB || '';
-                return nomA.localeCompare(nomB);
-            });
-            
-            corregimientos.forEach(f => {
-                const nombre = f.properties.CORR_NOMB || 'Sin nombre';
-                const corrCode = f.properties.CORR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID);
-                const id = formatearCodigo(corrCode, 6);
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = nombre;
-                option.dataset.feature = JSON.stringify(f);
-                selectCorr.appendChild(option);
-            });
-        
-            selectCorr.disabled = false;
-            wrapperCorr.style.display = 'block';
-        }
-
-        function cargarPobladosEnSelector(corrCode) {
-            const selectPoblado = document.getElementById('selector-poblado');
-            const wrapperPoblado = document.getElementById('wrapper-poblado');
-            
-            const corrCodeFormateado = formatearCodigo(corrCode, 6);
-            
-            if (!datos.poblados) {
-                selectPoblado.innerHTML = '<option value="">No hay poblados disponibles</option>';
-                selectPoblado.disabled = true;
-                wrapperPoblado.style.display = 'block';
-                return;
-            }
-            
-            const poblados = datos.poblados.features.filter(f => {
-                const p = f.properties;
-                const lupoCode = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
-                return lupoCode.substring(0, 6) === corrCodeFormateado;
-            });
-        
-            if (poblados.length === 0) {
-                selectPoblado.innerHTML = '<option value="">No hay poblados disponibles</option>';
-                selectPoblado.disabled = true;
-                wrapperPoblado.style.display = 'block';
-                return;
-            }
-        
-            selectPoblado.innerHTML = '<option value="">Seleccionar poblado...</option>';
-            
-            poblados.sort((a, b) => {
-                const nomA = a.properties.LUPO_NOMB || '';
-                const nomB = b.properties.LUPO_NOMB || '';
-                return nomA.localeCompare(nomB);
-            });
-            
-            poblados.forEach(f => {
-                const nombre = f.properties.LUPO_NOMB || 'Sin nombre';
-                const lupoCode = f.properties.LUPO_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID);
-                const id = formatearCodigo(lupoCode, 9);
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = nombre;
-                option.dataset.feature = JSON.stringify(f);
-                selectPoblado.appendChild(option);
-            });
-        
-            selectPoblado.disabled = false;
-            wrapperPoblado.style.display = 'block';
-        }
-
-        function cargarBarriosEnSelector(lupoCode) {
-            const selectBarrio = document.getElementById('selector-barrio');
-            const wrapperBarrio = document.getElementById('wrapper-barrio');
-            
-            const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
-            
-            const barrios = datos.barrios.features.filter(f => {
-                const p = f.properties;
-                const barrioCode = p.BARR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID + p.BARR_ID);
-                return barrioCode.substring(0, 9) === lupoCodeFormateado;
-            });
-        
-            if (barrios.length === 0) {
-                selectBarrio.innerHTML = '<option value="">No hay barrios disponibles</option>';
-                selectBarrio.disabled = true;
-                wrapperBarrio.style.display = 'block';
-                return;
-            }
-        
-            selectBarrio.innerHTML = '<option value="">Seleccionar barrio...</option>';
-            
-            barrios.sort((a, b) => {
-                const nomA = a.properties.BARR_NOMB || '';
-                const nomB = b.properties.BARR_NOMB || '';
-                return nomA.localeCompare(nomB);
-            });
-            
-            barrios.forEach(f => {
-                const nombre = f.properties.BARR_NOMB || 'Sin nombre';
-                const barrioCode = f.properties.BARR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID + f.properties.BARR_ID);
-                const id = formatearCodigo(barrioCode, 12);
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = nombre;
-                option.dataset.feature = JSON.stringify(f);
-                selectBarrio.appendChild(option);
-            });
-        
-            selectBarrio.disabled = false;
-            wrapperBarrio.style.display = 'block';
-        }
-        // ================================================================
-        // 11. CAMBIAR DISTRITO
+        // 15. CAMBIAR DISTRITO
         // ================================================================
         function cambiarDistrito() {
             const select = document.getElementById('selector-distrito');
@@ -1441,9 +1441,8 @@
             if (!value) {
                 if (seleccion.provincia) {
                     const provFeature = JSON.parse(document.getElementById('selector-provincia').options[document.getElementById('selector-provincia').selectedIndex].dataset.feature);
-                    mostrarPoligonoUnico(provFeature);
                     nivelActual = 'provincias';
-                    // Cargar distritos en el selector
+                    mostrarPoligonoUnico(provFeature);
                     cargarDistritosEnSelector(seleccion.provincia.PROV_ID);
                 }
                 seleccion.distrito = null;
@@ -1453,7 +1452,7 @@
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
-        
+
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             seleccion.distrito = props;
@@ -1476,15 +1475,14 @@
                     dashArray: '6, 4'
                 }
             }).addTo(map);
-        
-            // Cargar corregimientos en el selector (NO en el mapa)
+
             if (datos.corregimientos) {
                 cargarCorregimientosEnSelector(value);
             }
         }
 
         // ================================================================
-        // 13. CAMBIAR CORREGIMIENTO
+        // 16. CAMBIAR CORREGIMIENTO
         // ================================================================
         function cambiarCorregimiento() {
             const select = document.getElementById('selector-corregimiento');
@@ -1507,13 +1505,12 @@
             
             if (!value) {
                 if (seleccion.distrito) {
+                    const distFeature = JSON.parse(document.getElementById('selector-distrito').options[document.getElementById('selector-distrito').selectedIndex].dataset.feature);
+                    nivelActual = 'distritos';
+                    mostrarPoligonoUnico(distFeature);
                     const distCode = seleccion.distrito.DIST_CODE || 
                                     (seleccion.distrito.PROV_ID + seleccion.distrito.DIST_ID);
-                    const distCodeFormateado = formatearCodigo(distCode, 4);
-                    mostrarPoligonoUnico(JSON.parse(document.getElementById('selector-distrito').options[document.getElementById('selector-distrito').selectedIndex].dataset.feature));
-                    nivelActual = 'distritos';
-                    // Cargar corregimientos en el selector
-                    cargarCorregimientosEnSelector(distCodeFormateado);
+                    cargarCorregimientosEnSelector(formatearCodigo(distCode, 4));
                 }
                 seleccion.corregimiento = null;
                 seleccion.poblado = null;
@@ -1521,7 +1518,7 @@
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
-        
+
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             seleccion.corregimiento = props;
@@ -1543,76 +1540,14 @@
                     dashArray: '6, 4'
                 }
             }).addTo(map);
-        
-            // Cargar poblados en el selector (NO en el mapa)
+
             if (datos.poblados) {
                 cargarPobladosEnSelector(value);
             }
         }
 
         // ================================================================
-        // 14. CARGAR POBLADOS
-        // ================================================================
-        function cargarPoblados(corrCode) {
-            const selectPoblado = document.getElementById('selector-poblado');
-            const wrapperPoblado = document.getElementById('wrapper-poblado');
-            
-            const corrCodeFormateado = formatearCodigo(corrCode, 6);
-            
-            if (!datos.poblados) {
-                selectPoblado.innerHTML = '<option value="">No hay poblados disponibles</option>';
-                selectPoblado.disabled = true;
-                wrapperPoblado.style.display = 'block';
-                return;
-            }
-            
-            const poblados = datos.poblados.features.filter(f => {
-                const p = f.properties;
-                const lupoCode = p.LUPO_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID);
-                return lupoCode.substring(0, 6) === corrCodeFormateado;
-            });
-
-            console.log(`Poblados para corregimiento ${corrCodeFormateado}: ${poblados.length}`);
-
-            if (poblados.length === 0) {
-                selectPoblado.innerHTML = '<option value="">No hay poblados disponibles</option>';
-                selectPoblado.disabled = true;
-                wrapperPoblado.style.display = 'block';
-                return;
-            }
-
-            selectPoblado.innerHTML = '<option value="">Seleccionar poblado...</option>';
-            
-            poblados.sort((a, b) => {
-                const nomA = a.properties.LUPO_NOMB || '';
-                const nomB = b.properties.LUPO_NOMB || '';
-                return nomA.localeCompare(nomB);
-            });
-            
-            poblados.forEach(f => {
-                const nombre = f.properties.LUPO_NOMB || 'Sin nombre';
-                const lupoCode = f.properties.LUPO_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID);
-                const id = formatearCodigo(lupoCode, 9);
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = nombre;
-                option.dataset.feature = JSON.stringify(f);
-                selectPoblado.appendChild(option);
-            });
-
-            selectPoblado.disabled = false;
-            wrapperPoblado.style.display = 'block';
-
-            mostrarNivel('poblados', corrCodeFormateado);
-            
-            if (poblados.length === 1) {
-                selectPoblado.selectedIndex = 1;
-                cambiarPoblado();
-            }
-        }
-
-        // ================================================================
-        // 15. CAMBIAR POBLADO
+        // 17. CAMBIAR POBLADO
         // ================================================================
         function cambiarPoblado() {
             const select = document.getElementById('selector-poblado');
@@ -1626,19 +1561,19 @@
             
             if (!value) {
                 if (seleccion.corregimiento) {
+                    const corrFeature = JSON.parse(document.getElementById('selector-corregimiento').options[document.getElementById('selector-corregimiento').selectedIndex].dataset.feature);
+                    nivelActual = 'corregimientos';
+                    mostrarPoligonoUnico(corrFeature);
                     const corrCode = seleccion.corregimiento.CORR_CODE || 
                                     (seleccion.corregimiento.PROV_ID + seleccion.corregimiento.DIST_ID + seleccion.corregimiento.CORR_ID);
-                    const corrCodeFormateado = formatearCodigo(corrCode, 6);
-                    mostrarPoligonoUnico(JSON.parse(document.getElementById('selector-corregimiento').options[document.getElementById('selector-corregimiento').selectedIndex].dataset.feature));
-                    nivelActual = 'corregimientos';
-                    cargarPobladosEnSelector(corrCodeFormateado);
+                    cargarPobladosEnSelector(formatearCodigo(corrCode, 6));
                 }
                 seleccion.poblado = null;
                 seleccion.barrio = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
-        
+
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             seleccion.poblado = props;
@@ -1659,69 +1594,14 @@
                     dashArray: '6, 4'
                 }
             }).addTo(map);
-        
-            // Cargar barrios en el selector (NO en el mapa)
+
             if (datos.barrios) {
                 cargarBarriosEnSelector(value);
             }
         }
 
         // ================================================================
-        // 16. CARGAR BARRIOS
-        // ================================================================
-        function cargarBarrios(lupoCode) {
-            const selectBarrio = document.getElementById('selector-barrio');
-            const wrapperBarrio = document.getElementById('wrapper-barrio');
-            
-            const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
-            
-            const barrios = datos.barrios.features.filter(f => {
-                const p = f.properties;
-                const barrioCode = p.BARR_CODE || (p.PROV_ID + p.DIST_ID + p.CORR_ID + p.LUPO_ID + p.BARR_ID);
-                return barrioCode.substring(0, 9) === lupoCodeFormateado;
-            });
-
-            console.log(`Barrios para poblado ${lupoCodeFormateado}: ${barrios.length}`);
-
-            if (barrios.length === 0) {
-                selectBarrio.innerHTML = '<option value="">No hay barrios disponibles</option>';
-                selectBarrio.disabled = true;
-                wrapperBarrio.style.display = 'block';
-                return;
-            }
-
-            selectBarrio.innerHTML = '<option value="">Seleccionar barrio...</option>';
-            
-            barrios.sort((a, b) => {
-                const nomA = a.properties.BARR_NOMB || '';
-                const nomB = b.properties.BARR_NOMB || '';
-                return nomA.localeCompare(nomB);
-            });
-            
-            barrios.forEach(f => {
-                const nombre = f.properties.BARR_NOMB || 'Sin nombre';
-                const barrioCode = f.properties.BARR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID + f.properties.BARR_ID);
-                const id = formatearCodigo(barrioCode, 12);
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = nombre;
-                option.dataset.feature = JSON.stringify(f);
-                selectBarrio.appendChild(option);
-            });
-
-            selectBarrio.disabled = false;
-            wrapperBarrio.style.display = 'block';
-
-            mostrarNivel('barrios', lupoCodeFormateado);
-            
-            if (barrios.length === 1) {
-                selectBarrio.selectedIndex = 1;
-                cambiarBarrio();
-            }
-        }
-
-        // ================================================================
-        // 17. CAMBIAR BARRIO
+        // 18. CAMBIAR BARRIO
         // ================================================================
         function cambiarBarrio() {
             const select = document.getElementById('selector-barrio');
@@ -1729,18 +1609,18 @@
             
             if (!value) {
                 if (seleccion.poblado) {
+                    const pobladoFeature = JSON.parse(document.getElementById('selector-poblado').options[document.getElementById('selector-poblado').selectedIndex].dataset.feature);
+                    nivelActual = 'poblados';
+                    mostrarPoligonoUnico(pobladoFeature);
                     const lupoCode = seleccion.poblado.LUPO_CODE || 
                                     (seleccion.poblado.PROV_ID + seleccion.poblado.DIST_ID + seleccion.poblado.CORR_ID + seleccion.poblado.LUPO_ID);
-                    const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
-                    mostrarPoligonoUnico(JSON.parse(document.getElementById('selector-poblado').options[document.getElementById('selector-poblado').selectedIndex].dataset.feature));
-                    nivelActual = 'poblados';
-                    cargarBarriosEnSelector(lupoCodeFormateado);
+                    cargarBarriosEnSelector(formatearCodigo(lupoCode, 9));
                 }
                 seleccion.barrio = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
-        
+
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             seleccion.barrio = props;
@@ -1763,7 +1643,7 @@
         }
 
         // ================================================================
-        // 18. VOLVER NIVEL JERÁRQUICO
+        // 19. VOLVER NIVEL JERÁRQUICO
         // ================================================================
         function volverNivel() {
             const niveles = ['provincias', 'distritos', 'corregimientos', 'poblados', 'barrios'];
@@ -1771,22 +1651,19 @@
             
             if (idx <= 0) return;
             
-            const nivelAnterior = niveles[idx - 1];
-            
             if (nivelActual === 'barrios') {
                 document.getElementById('selector-barrio').selectedIndex = 0;
                 document.getElementById('selector-barrio').disabled = true;
                 document.getElementById('wrapper-barrio').style.display = 'none';
-                seleccion.barrio = null;
-                
                 if (seleccion.poblado) {
+                    const pobladoFeature = JSON.parse(document.getElementById('selector-poblado').options[document.getElementById('selector-poblado').selectedIndex].dataset.feature);
+                    nivelActual = 'poblados';
+                    mostrarPoligonoUnico(pobladoFeature);
                     const lupoCode = seleccion.poblado.LUPO_CODE || 
                                     (seleccion.poblado.PROV_ID + seleccion.poblado.DIST_ID + seleccion.poblado.CORR_ID + seleccion.poblado.LUPO_ID);
-                    const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
-                    mostrarNivel('poblados', lupoCodeFormateado);
-                    document.getElementById('selector-poblado').disabled = false;
-                    document.getElementById('wrapper-poblado').style.display = 'block';
+                    cargarBarriosEnSelector(formatearCodigo(lupoCode, 9));
                 }
+                seleccion.barrio = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
@@ -1795,16 +1672,15 @@
                 document.getElementById('selector-poblado').selectedIndex = 0;
                 document.getElementById('selector-poblado').disabled = true;
                 document.getElementById('wrapper-poblado').style.display = 'none';
-                seleccion.poblado = null;
-                
                 if (seleccion.corregimiento) {
+                    const corrFeature = JSON.parse(document.getElementById('selector-corregimiento').options[document.getElementById('selector-corregimiento').selectedIndex].dataset.feature);
+                    nivelActual = 'corregimientos';
+                    mostrarPoligonoUnico(corrFeature);
                     const corrCode = seleccion.corregimiento.CORR_CODE || 
                                     (seleccion.corregimiento.PROV_ID + seleccion.corregimiento.DIST_ID + seleccion.corregimiento.CORR_ID);
-                    const corrCodeFormateado = formatearCodigo(corrCode, 6);
-                    mostrarNivel('corregimientos', corrCodeFormateado);
-                    document.getElementById('selector-corregimiento').disabled = false;
-                    document.getElementById('wrapper-corregimiento').style.display = 'block';
+                    cargarPobladosEnSelector(formatearCodigo(corrCode, 6));
                 }
+                seleccion.poblado = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
@@ -1813,14 +1689,15 @@
                 document.getElementById('selector-corregimiento').selectedIndex = 0;
                 document.getElementById('selector-corregimiento').disabled = true;
                 document.getElementById('wrapper-corregimiento').style.display = 'none';
-                seleccion.corregimiento = null;
-                
                 if (seleccion.distrito) {
-                    const provId = seleccion.distrito.PROV_ID;
-                    mostrarNivel('distritos', provId);
-                    document.getElementById('selector-distrito').disabled = false;
-                    document.getElementById('wrapper-distrito').style.display = 'block';
+                    const distFeature = JSON.parse(document.getElementById('selector-distrito').options[document.getElementById('selector-distrito').selectedIndex].dataset.feature);
+                    nivelActual = 'distritos';
+                    mostrarPoligonoUnico(distFeature);
+                    const distCode = seleccion.distrito.DIST_CODE || 
+                                    (seleccion.distrito.PROV_ID + seleccion.distrito.DIST_ID);
+                    cargarCorregimientosEnSelector(formatearCodigo(distCode, 4));
                 }
+                seleccion.corregimiento = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
@@ -1829,27 +1706,20 @@
                 document.getElementById('selector-distrito').selectedIndex = 0;
                 document.getElementById('selector-distrito').disabled = true;
                 document.getElementById('wrapper-distrito').style.display = 'none';
-                seleccion.distrito = null;
-                
-                mostrarNivel('provincias');
                 if (seleccion.provincia) {
-                    const selectProv = document.getElementById('selector-provincia');
-                    const provId = seleccion.provincia.PROV_ID;
-                    for (let i = 0; i < selectProv.options.length; i++) {
-                        if (selectProv.options[i].value === provId) {
-                            selectProv.selectedIndex = i;
-                            break;
-                        }
-                    }
-                    mostrarDatosTabla(seleccion.provincia, 'Provincia');
+                    const provFeature = JSON.parse(document.getElementById('selector-provincia').options[document.getElementById('selector-provincia').selectedIndex].dataset.feature);
+                    nivelActual = 'provincias';
+                    mostrarPoligonoUnico(provFeature);
+                    cargarDistritosEnSelector(seleccion.provincia.PROV_ID);
                 }
+                seleccion.distrito = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
         }
 
         // ================================================================
-        // 19. MOSTRAR DATOS EN TABLA
+        // 20. MOSTRAR DATOS EN TABLA
         // ================================================================
         function mostrarDatosTabla(props, titulo) {
             const container = document.getElementById('info-content');
@@ -1927,9 +1797,6 @@
                     tieneDatos = true;
                     const nombreCampo = descripcionCampos[campo] || campo;
                     
-                    // ============================================================
-                    // CONVERTIR CÓDIGOS A NOMBRES PARA LUPO_CATE Y LUPO_TIPO
-                    // ============================================================
                     if (campo === 'LUPO_CATE' && valoresCampos['LUPO_CATE']) {
                         const valorStr = String(valor);
                         if (valoresCampos['LUPO_CATE'][valorStr]) {
@@ -1943,7 +1810,6 @@
                         }
                     }
                     
-                    // Formatear códigos
                     if (camposCodigo.includes(campo)) {
                         let longitud = 2;
                         if (campo === 'DIST_CODE') longitud = 4;
@@ -1988,7 +1854,7 @@
         }
 
         // ================================================================
-        // 20. MODAL PARA GRÁFICA
+        // 21. MODAL PARA GRÁFICA
         // ================================================================
         function abrirModal() {
             if (!propsActuales) return;
@@ -2042,7 +1908,7 @@
         }
 
         // ================================================================
-        // 21. CREAR GRÁFICA EN MODAL
+        // 22. CREAR GRÁFICA EN MODAL
         // ================================================================
         function crearGraficaModal(props) {
             const canvas = document.getElementById('modal-chart');
@@ -2403,7 +2269,7 @@
         }
 
         // ================================================================
-        // 22. EXPORTAR
+        // 23. EXPORTAR
         // ================================================================
         function exportarGeoJSON() {
             if (!capaActual) {
@@ -2475,7 +2341,7 @@
         }
 
         // ================================================================
-        // 23. MAPA BASE
+        // 24. MAPA BASE
         // ================================================================
         function cambiarMapa(tipo) {
             Object.keys(layers).forEach(key => {
@@ -2487,7 +2353,7 @@
         }
 
         // ================================================================
-        // 24. RESET
+        // 25. RESET
         // ================================================================
         function resetearMapa() {
             colorProvinciaSeleccionada = null;
@@ -2520,7 +2386,7 @@
         }
 
         // ================================================================
-        // 25. INICIO
+        // 26. INICIO
         // ================================================================
         window.cambiarMapa = cambiarMapa;
         window.cambiarProvincia = cambiarProvincia;
