@@ -143,6 +143,11 @@
             padding: 3px 6px;
             margin-bottom: 0;
         }
+        .selector-wrapper select:disabled {
+            background: #e9ecef;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
 
         .info-panel {
             margin-top: 8px;
@@ -601,21 +606,9 @@
         };
 
         const colores = [
-            '#e63946', // Rojo intenso
-            '#457b9d', // Azul acero
-            '#2a9d8f', // Verde teal
-            '#f4a261', // Naranja cálido
-            '#6d597a', // Púrpura grisáceo
-            '#e76f51', // Naranja rojizo
-            '#264653', // Azul oscuro
-            '#2e9cca', // Azul brillante
-            '#7b2cbf', // Púrpura
-            '#00b4d8', // Cian
-            '#f9c74f', // Amarillo
-            '#d90429', // Rojo
-            '#2b2d42', // Azul noche
-            '#8d99ae', // Gris azulado
-            '#ef233c'  // Rojo fuerte
+            '#e63946', '#457b9d', '#2a9d8f', '#f4a261', '#6d597a',
+            '#e76f51', '#264653', '#2e9cca', '#7b2cbf', '#00b4d8',
+            '#f9c74f', '#d90429', '#2b2d42', '#8d99ae', '#ef233c'
         ];
 
         let datosCargados = 0;
@@ -689,9 +682,6 @@
             'ID1': 'ID Interno'
         };
 
-        // ================================================================
-        // 4b. DICCIONARIO DE VALORES PARA CAMPOS ESPECÍFICOS
-        // ================================================================
         const valoresCampos = {
             'LUPO_CATE': {
                 '1': 'Poblado',
@@ -719,19 +709,7 @@
                     if (nombre && coords) {
                         const icon = L.divIcon({
                             className: 'etiqueta-provincia',
-                            html: `<div style="
-                                background: rgba(0,0,0,0.7);
-                                color: white;
-                                padding: 2px 10px;
-                                border-radius: 4px;
-                                font-size: 10px;
-                                font-weight: 600;
-                                text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-                                pointer-events: none;
-                                white-space: nowrap;
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                                border: 1px solid rgba(255,255,255,0.2);
-                            ">${nombre}</div>`,
+                            html: `<div style="background:rgba(0,0,0,0.7);color:white;padding:2px 10px;border-radius:4px;font-size:10px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,0.5);pointer-events:none;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.2);">${nombre}</div>`,
                             iconSize: [0, 0],
                             iconAnchor: [0, 0]
                         });
@@ -759,13 +737,7 @@
             
             capaActual = L.geoJSON(feature, {
                 style: function() {
-                    let color;
-                    if (colorProvinciaSeleccionada) {
-                        color = colorProvinciaSeleccionada;
-                    } else {
-                        color = colores[0];
-                    }
-                    
+                    let color = colorProvinciaSeleccionada || colores[0];
                     return {
                         fillColor: color,
                         fillOpacity: 0.3,
@@ -813,18 +785,12 @@
                     
                     layer.on('mouseover', function(e) {
                         this.openTooltip();
-                        this.setStyle({
-                            fillOpacity: 0.5,
-                            weight: 3.5
-                        });
+                        this.setStyle({ fillOpacity: 0.5, weight: 3.5 });
                     });
                     
                     layer.on('mouseout', function(e) {
                         this.closeTooltip();
-                        this.setStyle({
-                            fillOpacity: 0.3,
-                            weight: 2.5
-                        });
+                        this.setStyle({ fillOpacity: 0.3, weight: 2.5 });
                     });
                 }
             }).addTo(map);
@@ -833,12 +799,10 @@
             if (bounds.isValid()) {
                 map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
             }
-            
-            console.log(`✅ Mostrando ${tipo}: ${nombre}`);
         }
 
         // ================================================================
-        // 7. MOSTRAR NIVEL COMPLETO (para reset)
+        // 7. MOSTRAR NIVEL COMPLETO
         // ================================================================
         function mostrarNivel(nivel, filtroId = null) {
             if (historial[historial.length - 1] !== nivel) {
@@ -922,14 +886,7 @@
                 features: validas
             }, {
                 style: function(feature, index) {
-                    let color;
-                    if (colorProvinciaSeleccionada) {
-                        color = colorProvinciaSeleccionada;
-                    } else {
-                        const idx = index % colores.length;
-                        color = colores[idx];
-                    }
-                    
+                    let color = colorProvinciaSeleccionada || colores[index % colores.length];
                     return {
                         fillColor: color,
                         fillOpacity: 0.3,
@@ -977,20 +934,13 @@
                     
                     layer.on('mouseover', function(e) {
                         this.openTooltip();
-                        this.setStyle({
-                            fillOpacity: 0.5,
-                            weight: 3.5
-                        });
+                        this.setStyle({ fillOpacity: 0.5, weight: 3.5 });
                     });
                     
                     layer.on('mouseout', function(e) {
                         this.closeTooltip();
-                        const color = colorProvinciaSeleccionada || 
-                                     colores[Object.keys(layer._layers || {}).length % colores.length];
-                        this.setStyle({
-                            fillOpacity: 0.3,
-                            weight: 2.5
-                        });
+                        const color = colorProvinciaSeleccionada || colores[0];
+                        this.setStyle({ fillOpacity: 0.3, weight: 2.5 });
                     });
                     
                     layer.on('click', function() {
@@ -1107,7 +1057,6 @@
                 return;
             }
 
-            // Poblar selector de provincias
             const selectProv = document.getElementById('selector-provincia');
             selectProv.innerHTML = '<option value="">Seleccionar provincia...</option>';
             
@@ -1163,10 +1112,14 @@
             const selectDist = document.getElementById('selector-distrito');
             const wrapperDist = document.getElementById('wrapper-distrito');
             
+            console.log('Cargando distritos para provincia:', provId);
+            
             const distritos = datos.distritos.features.filter(f => {
                 const p = f.properties;
                 return p.PROV_ID === provId;
             });
+
+            console.log('Distritos encontrados:', distritos.length);
 
             if (distritos.length === 0) {
                 selectDist.innerHTML = '<option value="">No hay distritos disponibles</option>';
@@ -1196,10 +1149,11 @@
 
             selectDist.disabled = false;
             wrapperDist.style.display = 'block';
+            console.log('Selector de distritos mostrado');
         }
 
         // ================================================================
-        // 11. CARGAR CORREGIMIENTOS EN SELECTOR (SOLO SELECTOR)
+        // 11. CARGAR CORREGIMIENTOS EN SELECTOR
         // ================================================================
         function cargarCorregimientosEnSelector(distCode) {
             const selectCorr = document.getElementById('selector-corregimiento');
@@ -1244,7 +1198,7 @@
         }
 
         // ================================================================
-        // 12. CARGAR POBLADOS EN SELECTOR (SOLO SELECTOR)
+        // 12. CARGAR POBLADOS EN SELECTOR
         // ================================================================
         function cargarPobladosEnSelector(corrCode) {
             const selectPoblado = document.getElementById('selector-poblado');
@@ -1296,7 +1250,7 @@
         }
 
         // ================================================================
-        // 13. CARGAR BARRIOS EN SELECTOR (SOLO SELECTOR)
+        // 13. CARGAR BARRIOS EN SELECTOR
         // ================================================================
         function cargarBarriosEnSelector(lupoCode) {
             const selectBarrio = document.getElementById('selector-barrio');
@@ -1396,7 +1350,6 @@
                 }
             }).addTo(map);
 
-            // Cargar distritos en el selector
             if (datos.distritos) {
                 cargarDistritosEnSelector(props.PROV_ID);
             }
@@ -1409,7 +1362,6 @@
             const select = document.getElementById('selector-distrito');
             const value = select.value;
             
-            // Resetear selectores de niveles inferiores
             const ids = ['corregimiento', 'poblado', 'barrio'];
             const wrappers = ['wrapper-corregimiento', 'wrapper-poblado', 'wrapper-barrio'];
             
@@ -1426,7 +1378,6 @@
             });
             
             if (!value) {
-                // Volver a mostrar la provincia
                 if (seleccion.provincia) {
                     const provFeature = JSON.parse(document.getElementById('selector-provincia').options[document.getElementById('selector-provincia').selectedIndex].dataset.feature);
                     nivelActual = 'provincias';
@@ -1464,7 +1415,6 @@
                 }
             }).addTo(map);
 
-            // Cargar corregimientos en el selector
             if (datos.corregimientos) {
                 cargarCorregimientosEnSelector(value);
             }
@@ -2223,9 +2173,7 @@
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -2242,15 +2190,11 @@
                             max: 100,
                             ticks: {
                                 font: { size: 10 },
-                                callback: function(value) {
-                                    return value + '%';
-                                }
+                                callback: function(value) { return value + '%'; }
                             }
                         },
                         y: {
-                            ticks: {
-                                font: { size: 10 }
-                            }
+                            ticks: { font: { size: 10 } }
                         }
                     }
                 }
