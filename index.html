@@ -475,9 +475,6 @@
         <div class="btn-group">
             <button class="btn-map active" onclick="cambiarMapa('satellite')" id="btn-satellite">🛰️ Satélite</button>
             <button class="btn-map" onclick="cambiarMapa('street')" id="btn-street">🌍 Callejero</button>
-            <button class="btn-map" onclick="cambiarMapa('topo')" id="btn-topo">🏔️ Topográfico</button>
-            <button class="btn-map" onclick="cambiarMapa('carto')" id="btn-carto">🗺️ Claro</button>
-            <button class="btn-map" onclick="cambiarMapa('dark')" id="btn-dark">🌙 Oscuro</button>
         </div>
 
         <!-- SELECTOR 1: PROVINCIA -->
@@ -568,18 +565,6 @@
             ),
             street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors',
-                maxZoom: 19
-            }),
-            topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenTopoMap',
-                maxZoom: 17
-            }),
-            carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; CartoDB',
-                maxZoom: 19
-            }),
-            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; CartoDB',
                 maxZoom: 19
             })
         };
@@ -853,7 +838,7 @@
         }
 
         // ================================================================
-        // 7. MOSTRAR NIVEL COMPLETO (para reset y volver)
+        // 7. MOSTRAR NIVEL COMPLETO (para reset)
         // ================================================================
         function mostrarNivel(nivel, filtroId = null) {
             if (historial[historial.length - 1] !== nivel) {
@@ -1411,6 +1396,7 @@
                 }
             }).addTo(map);
 
+            // Cargar distritos en el selector
             if (datos.distritos) {
                 cargarDistritosEnSelector(props.PROV_ID);
             }
@@ -1423,6 +1409,7 @@
             const select = document.getElementById('selector-distrito');
             const value = select.value;
             
+            // Resetear selectores de niveles inferiores
             const ids = ['corregimiento', 'poblado', 'barrio'];
             const wrappers = ['wrapper-corregimiento', 'wrapper-poblado', 'wrapper-barrio'];
             
@@ -1439,6 +1426,7 @@
             });
             
             if (!value) {
+                // Volver a mostrar la provincia
                 if (seleccion.provincia) {
                     const provFeature = JSON.parse(document.getElementById('selector-provincia').options[document.getElementById('selector-provincia').selectedIndex].dataset.feature);
                     nivelActual = 'provincias';
@@ -1476,6 +1464,7 @@
                 }
             }).addTo(map);
 
+            // Cargar corregimientos en el selector
             if (datos.corregimientos) {
                 cargarCorregimientosEnSelector(value);
             }
