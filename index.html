@@ -1690,7 +1690,7 @@
                 'V_CON_REL', 'V_TRABA', 'V_ALBE_MIG', 'V_REHABILI', 'V_OTR_COLE',
                 'V_DAMNI', 'V_INDIG', 'ID1'
             ];
-
+        
             let html = `<h4>📋 ${titulo}: ${nombre}`;
             
             const poblacion = parseFloat(props.N_PERSONAS) || 0;
@@ -1715,15 +1715,18 @@
             }
             
             html += `<table>`;
-
+        
             let tieneDatos = false;
-
+        
             camposPrioritarios.forEach(campo => {
                 let valor = props[campo];
                 if (valor !== undefined && valor !== null && valor !== '') {
                     tieneDatos = true;
                     const nombreCampo = descripcionCampos[campo] || campo;
                     
+                    // ============================================================
+                    // CONVERTIR CÓDIGOS A NOMBRES PARA LUPO_CATE Y LUPO_TIPO
+                    // ============================================================
                     if (campo === 'LUPO_CATE' && valoresCampos['LUPO_CATE']) {
                         const valorStr = String(valor);
                         if (valoresCampos['LUPO_CATE'][valorStr]) {
@@ -1737,6 +1740,7 @@
                         }
                     }
                     
+                    // Formatear códigos
                     if (camposCodigo.includes(campo)) {
                         let longitud = 2;
                         if (campo === 'DIST_CODE') longitud = 4;
@@ -1762,20 +1766,21 @@
                             valor = num.toFixed(2);
                         }
                     }
+                    
                     html += `<tr>
                         <td class="campo">${nombreCampo}</td>
                         <td class="valor">${valor}</td>
                     </tr>`;
                 }
             });
-
+        
             html += `</table>`;
-
+        
             if (!tieneDatos) {
                 html = `<div class="sin-datos">No hay datos disponibles para esta área</div>`;
                 document.getElementById('btn-grafica').style.display = 'none';
             }
-
+        
             container.innerHTML = html;
         }
 
