@@ -697,6 +697,21 @@
         };
 
         // ================================================================
+        // 4b. DICCIONARIO DE VALORES PARA CAMPOS ESPECÍFICOS
+        // ================================================================
+        const valoresCampos = {
+            'LUPO_CATE': {
+                '1': 'Poblado',
+                '2': 'Sitio'
+            },
+            'LUPO_TIPO': {
+                '1': 'Urbano',
+                '2': 'Rural',
+                '3': 'Indígena'
+            }
+        };
+
+        // ================================================================
         // 5. FUNCIÓN AGREGAR ETIQUETAS
         // ================================================================
         function agregarEtiquetas(features) {
@@ -1708,6 +1723,19 @@
                 if (valor !== undefined && valor !== null && valor !== '') {
                     tieneDatos = true;
                     const nombreCampo = descripcionCampos[campo] || campo;
+                    
+                    if (campo === 'LUPO_CATE' && valoresCampos['LUPO_CATE']) {
+                        const valorStr = String(valor);
+                        if (valoresCampos['LUPO_CATE'][valorStr]) {
+                            valor = valoresCampos['LUPO_CATE'][valorStr];
+                        }
+                    }
+                    if (campo === 'LUPO_TIPO' && valoresCampos['LUPO_TIPO']) {
+                        const valorStr = String(valor);
+                        if (valoresCampos['LUPO_TIPO'][valorStr]) {
+                            valor = valoresCampos['LUPO_TIPO'][valorStr];
+                        }
+                    }
                     
                     if (camposCodigo.includes(campo)) {
                         let longitud = 2;
