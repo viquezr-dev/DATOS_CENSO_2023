@@ -981,6 +981,104 @@
         }
 
         // ================================================================
+        // MOSTRAR UN POLÍGONO ÚNICO (para provincia, distrito, corregimiento, etc.)
+        // ================================================================
+        function mostrarPoligonoUnico(feature) {
+            if (!feature) return;
+            
+            if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
+            if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
+            
+            // Verificar que la geometría sea válida
+            if (!feature.geometry || !feature.geometry.type) {
+                console.log('El feature no tiene geometría válida');
+                return;
+            }
+            
+            capaActual = L.geoJSON(feature, {
+                style: function() {
+                    let color;
+                    if (colorProvinciaSeleccionada) {
+                        color = colorProvinciaSeleccionada;
+                    } else {
+                        color = colores[0];
+                    }
+                    
+                    return {
+                        fillColor: color,
+                        fillOpacity: 0.3,
+                        color: '#000000',
+                        weight: 2.5,
+                        opacity: 0.9
+                    };
+                },
+                onEachFeature: function(f, layer) {
+                    const props = f.properties;
+                    
+                    // Determinar el nombre según el nivel
+                    let nombre = '';
+                    let tipo = '';
+                    
+                    if (nivelActual === 'provincias') {
+                        nombre = props.PROV_NOMB || 'Provincia';
+                        tipo = 'Provincia';
+                    } else if (nivelActual === 'distritos') {
+                        nombre = props.DIST_NOMB || 'Distrito';
+                        tipo = 'Distrito';
+                    } else if (nivelActual === 'corregimientos') {
+                        nombre = props.CORR_NOMB || 'Corregimiento';
+                        tipo = 'Corregimiento';
+                    } else if (nivelActual === 'poblados') {
+                        nombre = props.LUPO_NOMB || 'Poblado';
+                        tipo = 'Poblado';
+                    } else if (nivelActual === 'barrios') {
+                        nombre = props.BARR_NOMB || 'Barrio';
+                        tipo = 'Barrio';
+                    } else {
+                        nombre = props.PROV_NOMB || props.DIST_NOMB || props.CORR_NOMB || 
+                                props.LUPO_NOMB || props.BARR_NOMB || 'Área';
+                        tipo = '';
+                    }
+                    
+                    const textoTooltip = tipo ? `${tipo}: ${nombre}` : nombre;
+                    
+                    layer.bindTooltip(textoTooltip, { 
+                        permanent: false, 
+                        direction: 'center',
+                        className: 'provincia-tooltip',
+                        offset: [0, -10],
+                        opacity: 0.95
+                    });
+                    
+                    layer.on('mouseover', function(e) {
+                        this.openTooltip();
+                        this.setStyle({
+                            fillOpacity: 0.5,
+                            weight: 3.5
+                        });
+                    });
+                    
+                    layer.on('mouseout', function(e) {
+                        this.closeTooltip();
+                        this.setStyle({
+                            fillOpacity: 0.3,
+                            weight: 2.5
+                        });
+                    });
+                }
+            }).addTo(map);
+            
+            // Hacer zoom al polígono
+            const bounds = L.geoJSON(feature).getBounds();
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+            }
+            
+            console.log(`✅ Mostrando ${tipo}: ${nombre}`);
+        }
+        
+        
+        // ================================================================
         // 7. CARGA DE DATOS
         // ================================================================
         function actualizarProgress() {
@@ -1091,7 +1189,7 @@
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             const idx = select.selectedIndex - 1;
-            colorProvinciaSeleccionada = colores[idx % colores.length]; 
+            colorProvinciaSeleccionada = colores[idx % colores.length];
             
             seleccion.provincia = props;
             seleccion.distrito = null;
@@ -1100,6 +1198,11 @@
             seleccion.barrio = null;
             
             mostrarDatosTabla(props, 'Provincia');
+            
+            // ============================================================
+            // CAMBIO: Mostrar SOLO la provincia seleccionada (no todos los distritos)
+            // ============================================================
+            mostrarPoligonoUnico(feature);  // ← Nueva función
             
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             capaResaltado = L.geoJSON(feature, {
@@ -1111,9 +1214,10 @@
                     dashArray: '6, 4'
                 }
             }).addTo(map);
-
+        
+            // Cargar distritos en el selector (pero NO en el mapa)
             if (datos.distritos) {
-                cargarDistritos(props.PROV_ID);
+                cargarDistritosEnSelector(props.PROV_ID);
             }
         }
 
@@ -1141,7 +1245,7 @@
         // ================================================================
         // 10. CARGAR DISTRITOS
         // ================================================================
-        function cargarDistritos(provId) {
+        function cargarDistritosEnSelector(provId) {
             const selectDist = document.getElementById('selector-distrito');
             const wrapperDist = document.getElementById('wrapper-distrito');
             
@@ -1149,14 +1253,14 @@
                 const p = f.properties;
                 return p.PROV_ID === provId;
             });
-
+        
             if (distritos.length === 0) {
                 selectDist.innerHTML = '<option value="">No hay distritos disponibles</option>';
                 selectDist.disabled = true;
                 wrapperDist.style.display = 'block';
                 return;
             }
-
+        
             selectDist.innerHTML = '<option value="">Seleccionar distrito...</option>';
             
             distritos.sort((a, b) => {
@@ -1175,16 +1279,9 @@
                 option.dataset.feature = JSON.stringify(f);
                 selectDist.appendChild(option);
             });
-
+        
             selectDist.disabled = false;
             wrapperDist.style.display = 'block';
-
-            mostrarNivel('distritos', provId);
-            
-            if (distritos.length === 1) {
-                selectDist.selectedIndex = 1;
-                cambiarDistrito();
-            }
         }
 
         // ================================================================
@@ -1211,7 +1308,8 @@
             
             if (!value) {
                 if (seleccion.provincia) {
-                    mostrarNivel('distritos', seleccion.provincia.PROV_ID);
+                    // Volver a mostrar la provincia
+                    mostrarPoligonoUnico(JSON.parse(document.getElementById('selector-provincia').options[document.getElementById('selector-provincia').selectedIndex].dataset.feature));
                 }
                 seleccion.distrito = null;
                 seleccion.corregimiento = null;
@@ -1220,7 +1318,7 @@
                 document.getElementById('btn-grafica').style.display = 'none';
                 return;
             }
-
+        
             const feature = JSON.parse(select.options[select.selectedIndex].dataset.feature);
             const props = feature.properties;
             seleccion.distrito = props;
@@ -1228,7 +1326,15 @@
             seleccion.poblado = null;
             seleccion.barrio = null;
             
+            // Cambiar nivel a distritos para los tooltips
+            nivelActual = 'distritos';
+            
             mostrarDatosTabla(props, 'Distrito');
+            
+            // ============================================================
+            // Mostrar SOLO el distrito seleccionado
+            // ============================================================
+            mostrarPoligonoUnico(feature);
             
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
             capaResaltado = L.geoJSON(feature, {
@@ -1240,9 +1346,10 @@
                     dashArray: '6, 4'
                 }
             }).addTo(map);
-
+        
+            // Cargar corregimientos en el selector
             if (datos.corregimientos) {
-                cargarCorregimientos(value);
+                cargarCorregimientosEnSelector(value);
             }
         }
 
