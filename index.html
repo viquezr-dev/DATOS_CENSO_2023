@@ -727,6 +727,13 @@
         function mostrarPoligonoUnico(feature) {
             if (!feature) return;
             
+            // ============================================================
+            // CONTROL DEL BOTÓN VOLVER
+            // ============================================================
+            const niveles = ['provincias', 'distritos', 'corregimientos', 'poblados', 'barrios'];
+            const idx = niveles.indexOf(nivelActual);
+            document.getElementById('btn-back').style.display = idx > 0 ? 'block' : 'none';
+            
             if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
             if (capaEtiquetas) { map.removeLayer(capaEtiquetas); capaEtiquetas = null; }
             
@@ -798,7 +805,7 @@
             // ============================================================
             // ZOOM - Ajustar según el nivel
             // ============================================================
-            let maxZoomValue = 14; // Zoom por defecto
+            let maxZoomValue = 14;
             
             if (nivelActual === 'provincias') maxZoomValue = 9;
             else if (nivelActual === 'distritos') maxZoomValue = 11;
