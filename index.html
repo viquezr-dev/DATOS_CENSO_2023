@@ -795,9 +795,20 @@
                 }
             }).addTo(map);
             
+            // ============================================================
+            // ZOOM - Ajustar según el nivel
+            // ============================================================
+            let maxZoomValue = 14; // Zoom por defecto
+            
+            if (nivelActual === 'provincias') maxZoomValue = 9;
+            else if (nivelActual === 'distritos') maxZoomValue = 11;
+            else if (nivelActual === 'corregimientos') maxZoomValue = 13;
+            else if (nivelActual === 'poblados') maxZoomValue = 16;
+            else if (nivelActual === 'barrios') maxZoomValue = 18;
+            
             const bounds = L.geoJSON(feature).getBounds();
             if (bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+                map.fitBounds(bounds, { padding: [40, 40], maxZoom: maxZoomValue });
             }
         }
 
