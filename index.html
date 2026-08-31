@@ -1620,29 +1620,14 @@
                 // Mostrar el poblado anterior
                 if (seleccion.poblado) {
                     nivelActual = 'poblados';
-                    // Mostrar el polígono del poblado
                     const pobladoFeature = JSON.parse(document.getElementById('selector-poblado').options[document.getElementById('selector-poblado').selectedIndex].dataset.feature);
                     mostrarPoligonoUnico(pobladoFeature);
-                    // Asegurar que el selector de poblados tenga la selección correcta
-                    const selectPoblado = document.getElementById('selector-poblado');
-                    selectPoblado.disabled = false;
+                    // Asegurar que el selector de poblados esté visible y seleccionado
+                    document.getElementById('selector-poblado').disabled = false;
                     document.getElementById('wrapper-poblado').style.display = 'block';
-                    // Mantener la selección del poblado
-                    const lupoCode = seleccion.poblado.LUPO_CODE || 
-                                    (seleccion.poblado.PROV_ID + seleccion.poblado.DIST_ID + seleccion.poblado.CORR_ID + seleccion.poblado.LUPO_ID);
-                    const lupoCodeFormateado = formatearCodigo(lupoCode, 9);
-                    for (let i = 0; i < selectPoblado.options.length; i++) {
-                        if (selectPoblado.options[i].value === lupoCodeFormateado) {
-                            selectPoblado.selectedIndex = i;
-                            break;
-                        }
-                    }
-                    // Recargar barrios en el selector (por si quieres volver a entrar)
-                    cargarBarriosEnSelector(lupoCodeFormateado);
                 }
                 seleccion.barrio = null;
                 document.getElementById('btn-grafica').style.display = 'none';
-                // Actualizar el badge del nivel
                 document.getElementById('badge-nivel').textContent = 'Poblados';
                 return;
             }
@@ -1659,20 +1644,8 @@
                     nivelActual = 'corregimientos';
                     const corrFeature = JSON.parse(document.getElementById('selector-corregimiento').options[document.getElementById('selector-corregimiento').selectedIndex].dataset.feature);
                     mostrarPoligonoUnico(corrFeature);
-                    // Asegurar que el selector de corregimientos tenga la selección correcta
-                    const selectCorr = document.getElementById('selector-corregimiento');
-                    selectCorr.disabled = false;
+                    document.getElementById('selector-corregimiento').disabled = false;
                     document.getElementById('wrapper-corregimiento').style.display = 'block';
-                    const corrCode = seleccion.corregimiento.CORR_CODE || 
-                                    (seleccion.corregimiento.PROV_ID + seleccion.corregimiento.DIST_ID + seleccion.corregimiento.CORR_ID);
-                    const corrCodeFormateado = formatearCodigo(corrCode, 6);
-                    for (let i = 0; i < selectCorr.options.length; i++) {
-                        if (selectCorr.options[i].value === corrCodeFormateado) {
-                            selectCorr.selectedIndex = i;
-                            break;
-                        }
-                    }
-                    cargarPobladosEnSelector(corrCodeFormateado);
                 }
                 seleccion.poblado = null;
                 document.getElementById('btn-grafica').style.display = 'none';
@@ -1692,20 +1665,8 @@
                     nivelActual = 'distritos';
                     const distFeature = JSON.parse(document.getElementById('selector-distrito').options[document.getElementById('selector-distrito').selectedIndex].dataset.feature);
                     mostrarPoligonoUnico(distFeature);
-                    // Asegurar que el selector de distritos tenga la selección correcta
-                    const selectDist = document.getElementById('selector-distrito');
-                    selectDist.disabled = false;
+                    document.getElementById('selector-distrito').disabled = false;
                     document.getElementById('wrapper-distrito').style.display = 'block';
-                    const distCode = seleccion.distrito.DIST_CODE || 
-                                    (seleccion.distrito.PROV_ID + seleccion.distrito.DIST_ID);
-                    const distCodeFormateado = formatearCodigo(distCode, 4);
-                    for (let i = 0; i < selectDist.options.length; i++) {
-                        if (selectDist.options[i].value === distCodeFormateado) {
-                            selectDist.selectedIndex = i;
-                            break;
-                        }
-                    }
-                    cargarCorregimientosEnSelector(distCodeFormateado);
                 }
                 seleccion.corregimiento = null;
                 document.getElementById('btn-grafica').style.display = 'none';
@@ -1725,21 +1686,12 @@
                     nivelActual = 'provincias';
                     const provFeature = JSON.parse(document.getElementById('selector-provincia').options[document.getElementById('selector-provincia').selectedIndex].dataset.feature);
                     mostrarPoligonoUnico(provFeature);
-                    // Asegurar que el selector de provincias tenga la selección correcta
-                    const selectProv = document.getElementById('selector-provincia');
-                    const provId = seleccion.provincia.PROV_ID;
-                    for (let i = 0; i < selectProv.options.length; i++) {
-                        if (selectProv.options[i].value === provId) {
-                            selectProv.selectedIndex = i;
-                            break;
-                        }
-                    }
-                    cargarDistritosEnSelector(provId);
+                    // Mantener el selector de provincia seleccionado
+                    document.getElementById('selector-provincia').disabled = false;
                 }
                 seleccion.distrito = null;
                 document.getElementById('btn-grafica').style.display = 'none';
                 document.getElementById('badge-nivel').textContent = 'Provincias';
-                // Ocultar el botón Volver (ya estamos en el nivel más alto)
                 document.getElementById('btn-back').style.display = 'none';
                 return;
             }
