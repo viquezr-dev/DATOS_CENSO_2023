@@ -965,7 +965,7 @@
                         if (nivel === 'provincias') {
                             const select = document.getElementById('selector-provincia');
                             for (let i = 0; i < select.options.length; i++) {
-                                if (select.options[i].textContent === props.PROV_NOMB) {
+                                if (select.options[i].textContent.includes(props.PROV_NOMB)) {
                                     select.selectedIndex = i;
                                     cambiarProvincia();
                                     break;
@@ -974,7 +974,7 @@
                         } else if (nivel === 'distritos') {
                             const select = document.getElementById('selector-distrito');
                             for (let i = 0; i < select.options.length; i++) {
-                                if (select.options[i].textContent === props.DIST_NOMB) {
+                                if (select.options[i].textContent.includes(props.DIST_NOMB) {
                                     select.selectedIndex = i;
                                     cambiarDistrito();
                                     break;
@@ -983,7 +983,7 @@
                         } else if (nivel === 'corregimientos') {
                             const select = document.getElementById('selector-corregimiento');
                             for (let i = 0; i < select.options.length; i++) {
-                                if (select.options[i].textContent === props.CORR_NOMB) {
+                                if (select.options[i].textContent.includes(props.CORR_NOMB) {
                                     select.selectedIndex = i;
                                     cambiarCorregimiento();
                                     break;
@@ -992,7 +992,7 @@
                         } else if (nivel === 'poblados') {
                             const select = document.getElementById('selector-poblado');
                             for (let i = 0; i < select.options.length; i++) {
-                                if (select.options[i].textContent === props.LUPO_NOMB) {
+                                if (select.options[i].textContent.includes(props.LUPO_NOMB) {
                                     select.selectedIndex = i;
                                     cambiarPoblado();
                                     break;
@@ -1001,7 +1001,7 @@
                         } else if (nivel === 'barrios') {
                             const select = document.getElementById('selector-barrio');
                             for (let i = 0; i < select.options.length; i++) {
-                                if (select.options[i].textContent === props.BARR_NOMB) {
+                                if (select.options[i].textContent.includes(props.BARR_NOMB) {
                                     select.selectedIndex = i;
                                     cambiarBarrio();
                                     break;
@@ -1086,7 +1086,8 @@
             });
             
             features.forEach((f) => {
-                const nombre = f.properties.PROV_NOMB || 'Sin nombre';
+                const codigo = formatearCodigo(f.properties.PROV_ID, 2);
+                const nombre = codigo + '-' + (f.properties.PROV_NOMB || 'Sin nombre');
                 const id = f.properties.PROV_ID || '';
                 const option = document.createElement('option');
                 option.value = id;
@@ -1155,7 +1156,8 @@
             });
             
             distritos.forEach(f => {
-                const nombre = f.properties.DIST_NOMB || 'Sin nombre';
+                const codigo = formatearCodigo(f.properties.DIST_ID, 2);
+                const nombre = codigo + '-' + (f.properties.DIST_NOMB || 'Sin nombre');
                 const distCode = f.properties.DIST_CODE || (f.properties.PROV_ID + f.properties.DIST_ID);
                 const id = formatearCodigo(distCode, 4);
                 const option = document.createElement('option');
@@ -1201,7 +1203,8 @@
             });
             
             corregimientos.forEach(f => {
-                const nombre = f.properties.CORR_NOMB || 'Sin nombre';
+                const codigo = formatearCodigo(f.properties.CORR_ID, 2);
+                const nombre = codigo + '-' + (f.properties.CORR_NOMB || 'Sin nombre');
                 const corrCode = f.properties.CORR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID);
                 const id = formatearCodigo(corrCode, 6);
                 const option = document.createElement('option');
@@ -1253,7 +1256,8 @@
             });
             
             poblados.forEach(f => {
-                const nombre = f.properties.LUPO_NOMB || 'Sin nombre';
+                const codigo = formatearCodigo(f.properties.LUPO_ID, 3);
+                const nombre = codigo + '-' + (f.properties.LUPO_NOMB || 'Sin nombre');
                 const lupoCode = f.properties.LUPO_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID);
                 const id = formatearCodigo(lupoCode, 9);
                 const option = document.createElement('option');
@@ -1298,7 +1302,8 @@
             });
             
             barrios.forEach(f => {
-                const nombre = f.properties.BARR_NOMB || 'Sin nombre';
+                const codigo = formatearCodigo(f.properties.BARR_ID, 3);
+                const nombre = codigo + '-' + (f.properties.BARR_NOMB || 'Sin nombre');
                 const barrioCode = f.properties.BARR_CODE || (f.properties.PROV_ID + f.properties.DIST_ID + f.properties.CORR_ID + f.properties.LUPO_ID + f.properties.BARR_ID);
                 const id = formatearCodigo(barrioCode, 12);
                 const option = document.createElement('option');
