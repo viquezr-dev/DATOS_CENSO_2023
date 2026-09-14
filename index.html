@@ -1080,9 +1080,9 @@
             
             const features = datos.provincias.features;
             features.sort((a, b) => {
-                const nomA = a.properties.PROV_NOMB || '';
-                const nomB = b.properties.PROV_NOMB || '';
-                return nomA.localeCompare(nomB);
+                const codA = Number(a.properties.PROV_ID) || 0;
+                const codB = Number(b.properties.PROV_ID) || 0;
+                return codA - codB;
             });
             
             features.forEach((f) => {
@@ -1150,9 +1150,15 @@
             selectDist.innerHTML = '<option value="">Seleccionar distrito...</option>';
             
             distritos.sort((a, b) => {
-                const nomA = a.properties.DIST_NOMB || '';
-                const nomB = b.properties.DIST_NOMB || '';
-                return nomA.localeCompare(nomB);
+                const pA = a.properties;
+                const pB = b.properties;
+                const codA = String(
+                    pA.DIST_CODE || (pA.PROV_ID + pA.DIST_ID)
+                ).padStart(4, '0');
+                const codB = String(
+                    pB.DIST_CODE || (pB.PROV_ID + pB.DIST_ID)
+                ).padStart(4, '0');
+                return codA.localeCompare(codB, 'es', { numeric: true });
             });
             
             distritos.forEach(f => {
@@ -1197,9 +1203,15 @@
             selectCorr.innerHTML = '<option value="">Seleccionar corregimiento...</option>';
             
             corregimientos.sort((a, b) => {
-                const nomA = a.properties.CORR_NOMB || '';
-                const nomB = b.properties.CORR_NOMB || '';
-                return nomA.localeCompare(nomB);
+                const pA = a.properties;
+                const pB = b.properties;
+                const codA = String(
+                    pA.CORR_CODE || (pA.PROV_ID + pA.DIST_ID + pA.CORR_ID)
+                ).padStart(6, '0');
+                const codB = String(
+                    pB.CORR_CODE || (pB.PROV_ID + pB.DIST_ID + pB.CORR_ID)
+                ).padStart(6, '0');
+                return codA.localeCompare(codB, 'es', { numeric: true });
             });
             
             corregimientos.forEach(f => {
@@ -1250,9 +1262,15 @@
             selectPoblado.innerHTML = '<option value="">Seleccionar poblado...</option>';
             
             poblados.sort((a, b) => {
-                const nomA = a.properties.LUPO_NOMB || '';
-                const nomB = b.properties.LUPO_NOMB || '';
-                return nomA.localeCompare(nomB);
+                const pA = a.properties;
+                const pB = b.properties;
+                const codA = String(
+                    pA.LUPO_CODE || (pA.PROV_ID + pA.DIST_ID + pA.CORR_ID + pA.LUPO_ID)
+                ).padStart(9, '0');
+                const codB = String(
+                    pB.LUPO_CODE || (pB.PROV_ID + pB.DIST_ID + pB.CORR_ID + pB.LUPO_ID)
+                ).padStart(9, '0');
+                return codA.localeCompare(codB, 'es', { numeric: true });
             });
             
             poblados.forEach(f => {
@@ -1296,9 +1314,15 @@
             selectBarrio.innerHTML = '<option value="">Seleccionar barrio...</option>';
             
             barrios.sort((a, b) => {
-                const nomA = a.properties.BARR_NOMB || '';
-                const nomB = b.properties.BARR_NOMB || '';
-                return nomA.localeCompare(nomB);
+                const pA = a.properties;
+                const pB = b.properties;
+                const codA = String(
+                    pA.BARR_CODE || (pA.PROV_ID + pA.DIST_ID + pA.CORR_ID + pA.LUPO_ID + pA.BARR_ID)
+                ).padStart(12, '0');
+                const codB = String(
+                    pB.BARR_CODE || (pB.PROV_ID + pB.DIST_ID + pB.CORR_ID + pB.LUPO_ID + pB.BARR_ID)
+                ).padStart(12, '0');
+                return codA.localeCompare(codB, 'es', { numeric: true });
             });
             
             barrios.forEach(f => {
