@@ -823,9 +823,7 @@
         // 7. MOSTRAR NIVEL COMPLETO
         // ================================================================
         function mostrarNivel(nivel, filtroId = null) {
-            if (historial[historial.length - 1] !== nivel) {
-                historial.push(nivel);
-            }
+            
             
             const nombres = {
                 'provincias': 'Provincias',
@@ -835,7 +833,8 @@
                 'barrios': 'Barrios'
             };
             document.getElementById('badge-nivel').textContent = nombres[nivel] || nivel;
-            document.getElementById('btn-back').style.display = historial.length > 1 ? 'block' : 'none';
+            document.getElementById('btn-back').style.display =
+            nivel === 'provincias' ? 'none' : 'block';
 
             if (capaActual) { map.removeLayer(capaActual); capaActual = null; }
             if (capaResaltado) { map.removeLayer(capaResaltado); capaResaltado = null; }
@@ -1632,97 +1631,318 @@
         // 19. VOLVER NIVEL JERÁRQUICO
         // ================================================================
         function volverNivel() {
-            const niveles = ['provincias', 'distritos', 'corregimientos', 'poblados', 'barrios'];
-            const idx = niveles.indexOf(nivelActual);
-            
-            if (idx <= 0) return;
-            
+        
             // ============================================================
-            // BARRIOS → POBLADOS
+            // BARRIO → POBLADO
             // ============================================================
             if (nivelActual === 'barrios') {
-                // Ocultar selector de barrios
-                document.getElementById('selector-barrio').selectedIndex = 0;
-                document.getElementById('selector-barrio').disabled = true;
-                document.getElementById('wrapper-barrio').style.display = 'none';
-                
-                // Mostrar el poblado anterior
-                if (seleccion.poblado) {
+        
+                const selectPoblado = document.getElementById('selector-poblado');
+        
+                if (seleccion.poblado && selectPoblado.selectedIndex > 0) {
+        
+                    const pobladoFeature = JSON.parse(
+                        selectPoblado.options[selectPoblado.selectedIndex].dataset.feature
+                    );
+        
+                    seleccion.barrio = null;
+        
                     nivelActual = 'poblados';
-                    const pobladoFeature = JSON.parse(document.getElementById('selector-poblado').options[document.getElementById('selector-poblado').selectedIndex].dataset.feature);
+        
+                    mostrarDatosTabla(
+                        pobladoFeature.properties,
+                        'Poblado'
+                    );
+        
                     mostrarPoligonoUnico(pobladoFeature);
-                    // Asegurar que el selector de poblados esté visible y seleccionado
-                    document.getElementById('selector-poblado').disabled = false;
+        
+                    // Ocultar barrios
+                    const selectBarrio = document.getElementById('selector-barrio');
+                    selectBarrio.selectedIndex = 0;
+                    selectBarrio.disabled = true;
+        
+                    document.getElementById('wrapper-barrio').style.display = 'none';
+        
+                    // Mantener poblado seleccionado
+                    selectPoblado.disabled = false;
                     document.getElementById('wrapper-poblado').style.display = 'block';
+        
+                    // Actualizar resaltado
+                    if (capaResaltado) {
+                        map.removeLayer(capaResaltado);
+                        capaResaltado = null;
+                    }
+        
+                    capaResaltado = L.geoJSON(pobladoFeature, {
+                        style: {
+                            fillColor: 'transparent',
+                            color: '#ff6b35',
+                            weight: 4,
+                            opacity: 0.9,
+                            dashArray: '6, 4'
+                        }
+                    }).addTo(map);
+        
+                    document.getElementById('badge-nivel').textContent = 'Poblados';
+                    document.getElementById('btn-grafica').style.display = 'none';
+        
+                    return;
                 }
-                seleccion.barrio = null;
-                document.getElementById('btn-grafica').style.display = 'none';
-                document.getElementById('badge-nivel').textContent = 'Poblados';
-                return;
             }
-            
+        
+        
             // ============================================================
-            // POBLADOS → CORREGIMIENTOS
+            // POBLADO → CORREGIMIENTO
             // ============================================================
             if (nivelActual === 'poblados') {
-                document.getElementById('selector-poblado').selectedIndex = 0;
-                document.getElementById('selector-poblado').disabled = true;
-                document.getElementById('wrapper-poblado').style.display = 'none';
-                
-                if (seleccion.corregimiento) {
+        
+                const selectCorr = document.getElementById('selector-corregimiento');
+        
+                if (seleccion.corregimiento && selectCorr.selectedIndex > 0) {
+        
+                    const corrFeature = JSON.parse(
+                        selectCorr.options[selectCorr.selectedIndex].dataset.feature
+                    );
+        
+                    seleccion.poblado = null;
+                    seleccion.barrio = null;
+        
                     nivelActual = 'corregimientos';
-                    const corrFeature = JSON.parse(document.getElementById('selector-corregimiento').options[document.getElementById('selector-corregimiento').selectedIndex].dataset.feature);
+        
+                    mostrarDatosTabla(
+                        corrFeature.properties,
+                        'Corregimiento'
+                    );
+        
                     mostrarPoligonoUnico(corrFeature);
-                    document.getElementById('selector-corregimiento').disabled = false;
+        
+                    // Ocultar poblados
+                    const selectPoblado = document.getElementById('selector-poblado');
+        
+                    selectPoblado.selectedIndex = 0;
+                    selectPoblado.disabled = true;
+        
+                    document.getElementById('wrapper-poblado').style.display = 'none';
+        
+                    // Ocultar barrios
+                    const selectBarrio = document.getElementById('selector-barrio');
+        
+                    selectBarrio.innerHTML =
+                        '<option value="">Seleccionar barrio...</option>';
+        
+                    selectBarrio.selectedIndex = 0;
+                    selectBarrio.disabled = true;
+        
+                    document.getElementById('wrapper-barrio').style.display = 'none';
+        
+                    // Mantener corregimiento seleccionado
+                    selectCorr.disabled = false;
                     document.getElementById('wrapper-corregimiento').style.display = 'block';
+        
+                    // Resaltado
+                    if (capaResaltado) {
+                        map.removeLayer(capaResaltado);
+                        capaResaltado = null;
+                    }
+        
+                    capaResaltado = L.geoJSON(corrFeature, {
+                        style: {
+                            fillColor: 'transparent',
+                            color: '#ff6b35',
+                            weight: 4,
+                            opacity: 0.9,
+                            dashArray: '6, 4'
+                        }
+                    }).addTo(map);
+        
+                    document.getElementById('badge-nivel').textContent =
+                        'Corregimientos';
+        
+                    document.getElementById('btn-grafica').style.display = 'none';
+        
+                    return;
                 }
-                seleccion.poblado = null;
-                document.getElementById('btn-grafica').style.display = 'none';
-                document.getElementById('badge-nivel').textContent = 'Corregimientos';
-                return;
             }
-            
+        
+        
             // ============================================================
-            // CORREGIMIENTOS → DISTRITOS
+            // CORREGIMIENTO → DISTRITO
             // ============================================================
             if (nivelActual === 'corregimientos') {
-                document.getElementById('selector-corregimiento').selectedIndex = 0;
-                document.getElementById('selector-corregimiento').disabled = true;
-                document.getElementById('wrapper-corregimiento').style.display = 'none';
-                
-                if (seleccion.distrito) {
+        
+                const selectDist = document.getElementById('selector-distrito');
+        
+                if (seleccion.distrito && selectDist.selectedIndex > 0) {
+        
+                    const distFeature = JSON.parse(
+                        selectDist.options[selectDist.selectedIndex].dataset.feature
+                    );
+        
+                    seleccion.corregimiento = null;
+                    seleccion.poblado = null;
+                    seleccion.barrio = null;
+        
                     nivelActual = 'distritos';
-                    const distFeature = JSON.parse(document.getElementById('selector-distrito').options[document.getElementById('selector-distrito').selectedIndex].dataset.feature);
+        
+                    mostrarDatosTabla(
+                        distFeature.properties,
+                        'Distrito'
+                    );
+        
                     mostrarPoligonoUnico(distFeature);
-                    document.getElementById('selector-distrito').disabled = false;
+        
+                    // Ocultar corregimientos
+                    const selectCorr = document.getElementById('selector-corregimiento');
+        
+                    selectCorr.selectedIndex = 0;
+                    selectCorr.disabled = true;
+        
+                    document.getElementById('wrapper-corregimiento').style.display = 'none';
+        
+                    // Ocultar poblados
+                    const selectPoblado = document.getElementById('selector-poblado');
+        
+                    selectPoblado.innerHTML =
+                        '<option value="">Seleccionar poblado...</option>';
+        
+                    selectPoblado.selectedIndex = 0;
+                    selectPoblado.disabled = true;
+        
+                    document.getElementById('wrapper-poblado').style.display = 'none';
+        
+                    // Ocultar barrios
+                    const selectBarrio = document.getElementById('selector-barrio');
+        
+                    selectBarrio.innerHTML =
+                        '<option value="">Seleccionar barrio...</option>';
+        
+                    selectBarrio.selectedIndex = 0;
+                    selectBarrio.disabled = true;
+        
+                    document.getElementById('wrapper-barrio').style.display = 'none';
+        
+                    // Mantener distrito seleccionado
+                    selectDist.disabled = false;
                     document.getElementById('wrapper-distrito').style.display = 'block';
+        
+                    // Resaltado
+                    if (capaResaltado) {
+                        map.removeLayer(capaResaltado);
+                        capaResaltado = null;
+                    }
+        
+                    capaResaltado = L.geoJSON(distFeature, {
+                        style: {
+                            fillColor: 'transparent',
+                            color: '#ff6b35',
+                            weight: 4,
+                            opacity: 0.9,
+                            dashArray: '6, 4'
+                        }
+                    }).addTo(map);
+        
+                    document.getElementById('badge-nivel').textContent =
+                        'Distritos';
+        
+                    document.getElementById('btn-grafica').style.display = 'none';
+        
+                    return;
                 }
-                seleccion.corregimiento = null;
-                document.getElementById('btn-grafica').style.display = 'none';
-                document.getElementById('badge-nivel').textContent = 'Distritos';
-                return;
             }
-            
+        
+        
             // ============================================================
-            // DISTRITOS → PROVINCIAS
+            // DISTRITO → PROVINCIA
             // ============================================================
             if (nivelActual === 'distritos') {
-                document.getElementById('selector-distrito').selectedIndex = 0;
-                document.getElementById('selector-distrito').disabled = true;
-                document.getElementById('wrapper-distrito').style.display = 'none';
-                
-                if (seleccion.provincia) {
+        
+                const selectProv = document.getElementById('selector-provincia');
+        
+                if (seleccion.provincia && selectProv.selectedIndex > 0) {
+        
+                    const provFeature = JSON.parse(
+                        selectProv.options[selectProv.selectedIndex].dataset.feature
+                    );
+        
+                    seleccion.distrito = null;
+                    seleccion.corregimiento = null;
+                    seleccion.poblado = null;
+                    seleccion.barrio = null;
+        
                     nivelActual = 'provincias';
-                    const provFeature = JSON.parse(document.getElementById('selector-provincia').options[document.getElementById('selector-provincia').selectedIndex].dataset.feature);
+        
+                    mostrarDatosTabla(
+                        provFeature.properties,
+                        'Provincia'
+                    );
+        
                     mostrarPoligonoUnico(provFeature);
-                    // Mantener el selector de provincia seleccionado
-                    document.getElementById('selector-provincia').disabled = false;
+        
+                    // Ocultar todos los niveles inferiores
+                    const selectDist = document.getElementById('selector-distrito');
+        
+                    selectDist.selectedIndex = 0;
+                    selectDist.disabled = true;
+        
+                    document.getElementById('wrapper-distrito').style.display = 'none';
+        
+                    const selectCorr = document.getElementById('selector-corregimiento');
+        
+                    selectCorr.innerHTML =
+                        '<option value="">Seleccionar corregimiento...</option>';
+        
+                    selectCorr.selectedIndex = 0;
+                    selectCorr.disabled = true;
+        
+                    document.getElementById('wrapper-corregimiento').style.display = 'none';
+        
+                    const selectPoblado = document.getElementById('selector-poblado');
+        
+                    selectPoblado.innerHTML =
+                        '<option value="">Seleccionar poblado...</option>';
+        
+                    selectPoblado.selectedIndex = 0;
+                    selectPoblado.disabled = true;
+        
+                    document.getElementById('wrapper-poblado').style.display = 'none';
+        
+                    const selectBarrio = document.getElementById('selector-barrio');
+        
+                    selectBarrio.innerHTML =
+                        '<option value="">Seleccionar barrio...</option>';
+        
+                    selectBarrio.selectedIndex = 0;
+                    selectBarrio.disabled = true;
+        
+                    document.getElementById('wrapper-barrio').style.display = 'none';
+        
+                    // Mantener provincia seleccionada
+                    selectProv.disabled = false;
+        
+                    // Resaltado
+                    if (capaResaltado) {
+                        map.removeLayer(capaResaltado);
+                        capaResaltado = null;
+                    }
+        
+                    capaResaltado = L.geoJSON(provFeature, {
+                        style: {
+                            fillColor: 'transparent',
+                            color: '#ff6b35',
+                            weight: 4,
+                            opacity: 0.9,
+                            dashArray: '6, 4'
+                        }
+                    }).addTo(map);
+        
+                    document.getElementById('badge-nivel').textContent =
+                        'Provincias';
+        
+                    document.getElementById('btn-back').style.display = 'none';
+                    document.getElementById('btn-grafica').style.display = 'none';
+        
+                    return;
                 }
-                seleccion.distrito = null;
-                document.getElementById('btn-grafica').style.display = 'none';
-                document.getElementById('badge-nivel').textContent = 'Provincias';
-                document.getElementById('btn-back').style.display = 'none';
-                return;
             }
         }
 
