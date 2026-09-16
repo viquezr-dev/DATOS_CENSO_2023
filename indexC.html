@@ -749,12 +749,12 @@
         .leaflet-tooltip.provincia-tooltip {
             background: rgba(0, 0, 0, 0.85) !important;
             color: white !important;
-            font-size: 11px !important;
+            font-size: 9px !important;    /* ← Más pequeño en móvil */
             font-weight: 600 !important;
-            padding: 5px 10px !important;
-            border-radius: 6px !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+            padding: 4px 8px !important;
+            border-radius: 5px !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4) !important;
             pointer-events: none !important;
             white-space: nowrap !important;
             z-index: 1500 !important;
@@ -1217,9 +1217,9 @@
             }).addTo(map);
 
             let maxZoomValue = 14;
-            if (nivelActual === 'provincias') maxZoomValue = 9;
-            else if (nivelActual === 'distritos') maxZoomValue = 11;
-            else if (nivelActual === 'corregimientos') maxZoomValue = 13;
+            if (nivelActual === 'provincias') maxZoomValue = 10;
+            else if (nivelActual === 'distritos') maxZoomValue = 12;
+            else if (nivelActual === 'corregimientos') maxZoomValue = 14;
             else if (nivelActual === 'poblados') maxZoomValue = 16;
             else if (nivelActual === 'barrios') maxZoomValue = 18;
 
@@ -1393,9 +1393,8 @@
 
             const bounds = L.geoJSON({ type: 'FeatureCollection', features: validas }).getBounds();
             if (bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [30, 30] });
+                map.fitBounds(bounds, { padding: [30, 30], maxZoom: 9 });  // ← Zoom más cercano
             }
-        }
 
         // ================================================================
         // 10. CARGA DE DATOS
