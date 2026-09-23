@@ -530,6 +530,26 @@
             <button class="btn-reset" onclick="resetearMapa()">🔄 Reset</button>
         </div>
 
+        <div class="selector-wrapper" style="margin-top:10px;border-left-color:#2c6b9e;">
+            <label>📥 Descargar conjunto de datos:</label>
+            <select id="export-tipo" onchange="actualizarFiltroExportacion()">
+                <option value="provincias">Todas las provincias</option>
+                <option value="distritos">Todos los distritos</option>
+                <option value="corregimientos">Todos los corregimientos</option>
+                <option value="poblados">Poblados de un corregimiento</option>
+                <option value="barrios">Barrios de un corregimiento</option>
+            </select>
+            <div id="export-filtros" style="display:none;margin-top:6px;">
+                <select id="export-provincia" onchange="actualizarDistritosExportacion()" aria-label="Provincia para exportar"><option value="">Seleccionar provincia...</option></select>
+                <select id="export-distrito" onchange="actualizarCorregimientosExportacion()" aria-label="Distrito para exportar" style="margin-top:5px;"><option value="">Seleccionar distrito...</option></select>
+                <select id="export-corregimiento" aria-label="Corregimiento para exportar" style="margin-top:5px;"><option value="">Seleccionar corregimiento...</option></select>
+            </div>
+            <div class="btn-group" style="margin-top:6px;">
+                <button class="btn-geojson" onclick="exportarConjunto('geojson')">📥 GeoJSON</button>
+                <button class="btn-export" onclick="exportarConjunto('csv')">📊 CSV</button>
+            </div>
+        </div>
+
         <div class="info-panel" id="info-panel">
             <h4>📋 Datos del Censo</h4>
             <div id="info-content">
@@ -1096,6 +1116,9 @@
             });
 
             mostrarNivel('provincias');
+
+            llenarOpcionesExportacion('export-provincia', datos.provincias.features,
+                'PROV_ID', 'PROV_NOMB', 2);
 
             loading.style.display = 'none';
             document.getElementById('badge-nivel').textContent = 'Provincias';
@@ -2493,6 +2516,112 @@
         // ================================================================
         // 23. EXPORTAR
         // ================================================================
+        function codigoExportacion(p, nivel) {
+            const longitudes = { provincias: 2, distritos: 4, corregimientos: 6,
+                poblados: 9, barrios: 12 };
+            const campos = { provincias: 'PROV_ID', distritos: 'DIST_CODE',
+                corregimientos: 'CORR_CODE', poblados: 'LUPO_CODE', barrios: 'BARR_CODE' };
+            const partes = ['PROV_ID', 'DIST_ID', 'CORR_ID', 'LUPO_ID', 'BARR_ID'];
+            const cantidad = ['provincias', 'distritos', 'corregimientos', 'poblados', 'barrios'].indexOf(nivel) + 1;
+            const valor = p[campos[nivel]];
+            if (valor !== undefined && valor !== null && String(valor).trim() !== '') {
+                return formatearCodigo(valor, longitudes[nivel]);
+            }
+            return partes.slice(0, cantidad).map(c => formatearCodigo(p[c], 2)).join('');
+        }
+
+        function llenarOpcionesExportacion(id, features, nivel, campoNombre, longitud) {
+            const select = document.getElementById(id);
+            select.innerHTML = '';
+            select.add(new Option(`Seleccionar ${nivel === 'PROV_ID' ? 'provincia' : nivel === 'DIST_CODE' ? 'distrito' : 'corregimiento'}...`, ''));
+            const tipo = nivel === 'PROV_ID' ? 'provincias' : nivel === 'DIST_CODE' ? 'distritos' : 'corregimientos';
+            features.slice().sort((a, b) => codigoExportacion(a.properties, tipo).localeCompare(
+                codigoExportacion(b.properties, tipo), 'es', { numeric: true })).forEach(f => {
+                const p = f.properties;
+                select.add(new Option(`${codigoExportacion(p, tipo)} - ${p[campoNombre] || 'Sin nombre'}`,
+                    codigoExportacion(p, tipo)));
+            });
+        }
+
+        function actualizarFiltroExportacion() {
+            const tipo = document.getElementById('export-tipo').value;
+            document.getElementById('export-filtros').style.display =
+                tipo === 'poblados' || tipo === 'barrios' ? 'block' : 'none';
+        }
+
+        function actualizarDistritosExportacion() {
+            const provincia = document.getElementById('export-provincia').value;
+            const features = (datos.distritos?.features || []).filter(f =>
+                codigoExportacion(f.properties, 'distritos').slice(0, 2) === provincia);
+            llenarOpcionesExportacion('export-distrito', features, 'DIST_CODE', 'DIST_NOMB', 4);
+            llenarOpcionesExportacion('export-corregimiento', [], 'CORR_CODE', 'CORR_NOMB', 6);
+        }
+
+        function actualizarCorregimientosExportacion() {
+            const distrito = document.getElementById('export-distrito').value;
+            const features = (datos.corregimientos?.features || []).filter(f =>
+                codigoExportacion(f.properties, 'corregimientos').slice(0, 4) === distrito);
+            llenarOpcionesExportacion('export-corregimiento', features, 'CORR_CODE', 'CORR_NOMB', 6);
+        }
+
+        function descargarArchivo(blob, nombre) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = nombre;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
+
+        function exportarConjunto(formato) {
+            const tipo = document.getElementById('export-tipo').value;
+            const fuente = datos[tipo];
+            if (!fuente || !Array.isArray(fuente.features)) {
+                alert(`No se han cargado los datos de ${tipo}.`);
+                return;
+            }
+            let features = fuente.features;
+            let sufijo = 'todos';
+            if (tipo === 'poblados' || tipo === 'barrios') {
+                const codigo = document.getElementById('export-corregimiento').value;
+                if (!codigo) {
+                    alert('Selecciona provincia, distrito y corregimiento para descargar.');
+                    return;
+                }
+                features = features.filter(f => codigoExportacion(f.properties, tipo).slice(0, 6) === codigo);
+                sufijo = codigo;
+            }
+            if (!features.length) {
+                alert(`No hay registros de ${tipo} para la selección.`);
+                return;
+            }
+            const nombre = `${tipo}_${sufijo}.${formato}`;
+            if (formato === 'geojson') {
+                descargarArchivo(new Blob([JSON.stringify({ type: 'FeatureCollection', features })],
+                    { type: 'application/geo+json;charset=utf-8' }), nombre);
+                return;
+            }
+            const encabezados = [...new Set(features.flatMap(f => Object.keys(f.properties || {})))];
+            const escapar = valor => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+            const lineas = [encabezados.map(escapar).join(',')];
+            features.forEach(f => lineas.push(encabezados.map(campo => {
+                let valor = f.properties?.[campo];
+                const longitud = { PROV_ID: 2, DIST_ID: 2, CORR_ID: 2,
+                    LUPO_ID: 2, BARR_ID: 2, DIST_CODE: 4, CORR_CODE: 6,
+                    LUPO_CODE: 9, BARR_CODE: 12 }[campo];
+                if (longitud && valor !== null && valor !== undefined && String(valor) !== '') {
+                    valor = formatearCodigo(valor, longitud);
+                    // Excel conserva los ceros iniciales al abrir el CSV.
+                    valor = `="${valor}"`;
+                }
+                return escapar(valor);
+            }).join(',')));
+            descargarArchivo(new Blob(['\uFEFF', lineas.join('\r\n'), '\r\n'],
+                { type: 'text/csv;charset=utf-8' }), nombre);
+        }
+
         function exportarGeoJSON() {
             if (!capaActual) {
                 alert('No hay ningún polígono para exportar.');
@@ -2619,6 +2748,10 @@
         window.volverNivel = volverNivel;
         window.exportarGeoJSON = exportarGeoJSON;
         window.exportarCSV = exportarCSV;
+        window.actualizarFiltroExportacion = actualizarFiltroExportacion;
+        window.actualizarDistritosExportacion = actualizarDistritosExportacion;
+        window.actualizarCorregimientosExportacion = actualizarCorregimientosExportacion;
+        window.exportarConjunto = exportarConjunto;
         window.resetearMapa = resetearMapa;
         window.abrirModal = abrirModal;
         window.cerrarModal = cerrarModal;
