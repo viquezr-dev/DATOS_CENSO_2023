@@ -208,22 +208,6 @@
             display: block;
             margin-bottom: 8px;
         }
-        .info-panel .btn-grafica-mini {
-            display: inline-block;
-            padding: 3px 10px;
-            background: #6f42c1;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 9px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-            margin-left: 4px;
-        }
-        .info-panel .btn-grafica-mini:hover {
-            background: #5a32a3;
-        }
         .info-panel .densidad-card {
             background: #e8f0fe;
             border-radius: 6px;
@@ -530,8 +514,18 @@
             <button class="btn-reset" onclick="resetearMapa()">🔄 Reset</button>
         </div>
 
-        <div class="selector-wrapper" style="margin-top:10px;border-left-color:#2c6b9e;">
-            <label>📥 Descargar conjunto de datos:</label>
+        <div class="info-panel" id="info-panel">
+            <h4>📋 Datos del Censo</h4>
+            <div id="info-content">
+                <div class="sin-datos">
+                    <span class="icono">🗺️</span>
+                    Selecciona una provincia en el menú<br>
+                    o haz clic en el mapa
+                </div>
+            </div>
+        </div>
+        <details id="export-panel" class="selector-wrapper" style="margin-top:10px;border-left-color:#2c6b9e;">
+            <summary style="cursor:pointer;font-weight:600;color:#2c6b9e;">📥 Descargar conjunto de datos</summary>
             <select id="export-tipo" onchange="actualizarFiltroExportacion()">
                 <option value="provincias">Todas las provincias</option>
                 <option value="distritos">Todos los distritos</option>
@@ -548,18 +542,8 @@
                 <button class="btn-geojson" onclick="exportarConjunto('geojson')">📥 GeoJSON</button>
                 <button class="btn-export" onclick="exportarConjunto('csv')">📊 CSV</button>
             </div>
-        </div>
+        </details>
 
-        <div class="info-panel" id="info-panel">
-            <h4>📋 Datos del Censo</h4>
-            <div id="info-content">
-                <div class="sin-datos">
-                    <span class="icono">🗺️</span>
-                    Selecciona una provincia en el menú<br>
-                    o haz clic en el mapa
-                </div>
-            </div>
-        </div>
     </div>
 
     <div class="footer">Datos: Censo 2023 – Diseñado por: Raúl Viquez</div>
@@ -2024,7 +2008,6 @@
             const densidad = areaKm2 > 0 ? poblacion / areaKm2 : 0;
             
             if (poblacion > 0 || viviendas > 0) {
-                html += ` <button class="btn-grafica-mini" onclick="abrirModal()">📊 Ver Gráfica</button>`;
                 document.getElementById('btn-grafica').style.display = 'block';
             } else {
                 document.getElementById('btn-grafica').style.display = 'none';
@@ -2706,10 +2689,20 @@
         // ================================================================
         // 25. RESET
         // ================================================================
+        function resetearDescargaConjunto() {
+            document.getElementById('export-panel').open = false;
+            document.getElementById('export-tipo').selectedIndex = 0;
+            document.getElementById('export-provincia').selectedIndex = 0;
+            llenarOpcionesExportacion('export-distrito', [], 'DIST_CODE', 'DIST_NOMB', 4);
+            llenarOpcionesExportacion('export-corregimiento', [], 'CORR_CODE', 'CORR_NOMB', 6);
+            actualizarFiltroExportacion();
+        }
+
         function resetearMapa() {
             colorProvinciaSeleccionada = null;
             historial = ['provincias'];
             document.getElementById('btn-back').style.display = 'none';
+            resetearDescargaConjunto();
             
             document.getElementById('selector-provincia').selectedIndex = 0;
             resetearSelectoresHijos();
