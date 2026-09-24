@@ -533,20 +533,7 @@
             color: #1a4a7a;
         }
 
-        .btn-grafica-inline {
-            width: 100%;
-            padding: 10px;
-            background: #6f42c1;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-bottom: 12px;
-        }
 
-        .btn-grafica-inline:active { background: #5a32a3; }
 
         .info-table {
             width: 100%;
@@ -908,6 +895,31 @@
                 <button class="btn-action btn-geojson" onclick="exportarGeoJSON()">📥 Exportar GeoJSON</button>
                 <button class="btn-action btn-export" onclick="exportarCSV()">📊 Exportar CSV</button>
                 <button class="btn-action btn-reset" onclick="resetearMapa()">🔄 Reiniciar</button>
+            </div>
+
+            <!-- Descarga de conjuntos completos o por corregimiento -->
+            <div class="menu-section">
+                <details id="export-panel" class="selector-wrapper" style="border-left-color:#2c6b9e;">
+                    <summary style="cursor:pointer;font-weight:700;color:#2c6b9e;">📥 Descargar conjunto de datos</summary>
+                    <label for="export-tipo" style="margin-top:10px;">Tipo de datos</label>
+                    <select id="export-tipo" onchange="actualizarFiltroExportacion()">
+                        <option value="provincias">Todas las provincias</option>
+                        <option value="distritos">Todos los distritos</option>
+                        <option value="corregimientos">Todos los corregimientos</option>
+                        <option value="poblados">Poblados de un corregimiento</option>
+                        <option value="barrios">Barrios de un corregimiento</option>
+                    </select>
+                    <div id="export-filtros" style="display:none;">
+                        <label for="export-provincia">Provincia</label>
+                        <select id="export-provincia" onchange="actualizarDistritosExportacion()"><option value="">Seleccionar provincia...</option></select>
+                        <label for="export-distrito">Distrito</label>
+                        <select id="export-distrito" onchange="actualizarCorregimientosExportacion()"><option value="">Seleccionar distrito...</option></select>
+                        <label for="export-corregimiento">Corregimiento</label>
+                        <select id="export-corregimiento"><option value="">Seleccionar corregimiento...</option></select>
+                    </div>
+                    <button class="btn-action btn-geojson" onclick="exportarConjunto('geojson')" style="margin-top:10px;">📥 Descargar GeoJSON</button>
+                    <button class="btn-action btn-export" onclick="exportarConjunto('csv')">📊 Descargar CSV</button>
+                </details>
             </div>
 
         </div>
@@ -1463,6 +1475,8 @@
             });
 
             mostrarNivel('provincias');
+            llenarOpcionesExportacion('export-provincia', datos.provincias.features,
+                'PROV_ID', 'PROV_NOMB', 2);
             loading.style.display = 'none';
             document.getElementById('badge-nivel').textContent = 'Provincias';
         }
@@ -2130,7 +2144,6 @@
             document.getElementById('bottom-sheet-title').innerHTML = `📋 ${titulo}: ${nombre}`;
 
             if (poblacion > 0 || viviendas > 0) {
-                html += `<button class="btn-grafica-inline" onclick="abrirModal()">📊 Ver Gráfica de Indicadores</button>`;
                 document.getElementById('btn-grafica').style.display = 'flex';
                 document.getElementById('btn-info').classList.add('tiene-datos');
             } else {
@@ -2394,6 +2407,112 @@
         // ================================================================
         // 25. EXPORTAR
         // ================================================================
+        function codigoExportacion(p, nivel) {
+            const longitudes = { provincias: 2, distritos: 4, corregimientos: 6,
+                poblados: 9, barrios: 12 };
+            const campos = { provincias: 'PROV_ID', distritos: 'DIST_CODE',
+                corregimientos: 'CORR_CODE', poblados: 'LUPO_CODE', barrios: 'BARR_CODE' };
+            const partes = ['PROV_ID', 'DIST_ID', 'CORR_ID', 'LUPO_ID', 'BARR_ID'];
+            const cantidad = ['provincias', 'distritos', 'corregimientos', 'poblados', 'barrios'].indexOf(nivel) + 1;
+            const valor = p[campos[nivel]];
+            if (valor !== undefined && valor !== null && String(valor).trim() !== '') {
+                return formatearCodigo(valor, longitudes[nivel]);
+            }
+            return partes.slice(0, cantidad).map(c => formatearCodigo(p[c], 2)).join('');
+        }
+
+        function llenarOpcionesExportacion(id, features, nivel, campoNombre, longitud) {
+            const select = document.getElementById(id);
+            select.innerHTML = '';
+            select.add(new Option(`Seleccionar ${nivel === 'PROV_ID' ? 'provincia' : nivel === 'DIST_CODE' ? 'distrito' : 'corregimiento'}...`, ''));
+            const tipo = nivel === 'PROV_ID' ? 'provincias' : nivel === 'DIST_CODE' ? 'distritos' : 'corregimientos';
+            features.slice().sort((a, b) => codigoExportacion(a.properties, tipo).localeCompare(
+                codigoExportacion(b.properties, tipo), 'es', { numeric: true })).forEach(f => {
+                const p = f.properties;
+                select.add(new Option(`${codigoExportacion(p, tipo)} - ${p[campoNombre] || 'Sin nombre'}`,
+                    codigoExportacion(p, tipo)));
+            });
+        }
+
+        function actualizarFiltroExportacion() {
+            const tipo = document.getElementById('export-tipo').value;
+            document.getElementById('export-filtros').style.display =
+                tipo === 'poblados' || tipo === 'barrios' ? 'block' : 'none';
+        }
+
+        function actualizarDistritosExportacion() {
+            const provincia = document.getElementById('export-provincia').value;
+            const features = (datos.distritos?.features || []).filter(f =>
+                codigoExportacion(f.properties, 'distritos').slice(0, 2) === provincia);
+            llenarOpcionesExportacion('export-distrito', features, 'DIST_CODE', 'DIST_NOMB', 4);
+            llenarOpcionesExportacion('export-corregimiento', [], 'CORR_CODE', 'CORR_NOMB', 6);
+        }
+
+        function actualizarCorregimientosExportacion() {
+            const distrito = document.getElementById('export-distrito').value;
+            const features = (datos.corregimientos?.features || []).filter(f =>
+                codigoExportacion(f.properties, 'corregimientos').slice(0, 4) === distrito);
+            llenarOpcionesExportacion('export-corregimiento', features, 'CORR_CODE', 'CORR_NOMB', 6);
+        }
+
+        function descargarArchivo(blob, nombre) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = nombre;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
+
+        function exportarConjunto(formato) {
+            const tipo = document.getElementById('export-tipo').value;
+            const fuente = datos[tipo];
+            if (!fuente || !Array.isArray(fuente.features)) {
+                alert(`No se han cargado los datos de ${tipo}.`);
+                return;
+            }
+            let features = fuente.features;
+            let sufijo = 'todos';
+            if (tipo === 'poblados' || tipo === 'barrios') {
+                const codigo = document.getElementById('export-corregimiento').value;
+                if (!codigo) {
+                    alert('Selecciona provincia, distrito y corregimiento para descargar.');
+                    return;
+                }
+                features = features.filter(f => codigoExportacion(f.properties, tipo).slice(0, 6) === codigo);
+                sufijo = codigo;
+            }
+            if (!features.length) {
+                alert(`No hay registros de ${tipo} para la selección.`);
+                return;
+            }
+            const nombre = `${tipo}_${sufijo}.${formato}`;
+            if (formato === 'geojson') {
+                descargarArchivo(new Blob([JSON.stringify({ type: 'FeatureCollection', features })],
+                    { type: 'application/geo+json;charset=utf-8' }), nombre);
+                return;
+            }
+            const encabezados = [...new Set(features.flatMap(f => Object.keys(f.properties || {})))];
+            const escapar = valor => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+            const lineas = [encabezados.map(escapar).join(',')];
+            features.forEach(f => lineas.push(encabezados.map(campo => {
+                let valor = f.properties?.[campo];
+                const longitud = { PROV_ID: 2, DIST_ID: 2, CORR_ID: 2,
+                    LUPO_ID: 2, BARR_ID: 2, DIST_CODE: 4, CORR_CODE: 6,
+                    LUPO_CODE: 9, BARR_CODE: 12 }[campo];
+                if (longitud && valor !== null && valor !== undefined && String(valor) !== '') {
+                    valor = formatearCodigo(valor, longitud);
+                    // Excel conserva los ceros iniciales al abrir el CSV.
+                    valor = `="${valor}"`;
+                }
+                return escapar(valor);
+            }).join(',')));
+            descargarArchivo(new Blob(['\uFEFF', lineas.join('\r\n'), '\r\n'],
+                { type: 'text/csv;charset=utf-8' }), nombre);
+        }
+
         function exportarGeoJSON() {
             if (!capaActual) {
                 alert('No hay ningún polígono para exportar.');
@@ -2462,9 +2581,19 @@
         // ================================================================
         // 27. RESET
         // ================================================================
+        function resetearDescargaConjunto() {
+            document.getElementById('export-panel').open = false;
+            document.getElementById('export-tipo').selectedIndex = 0;
+            document.getElementById('export-provincia').selectedIndex = 0;
+            llenarOpcionesExportacion('export-distrito', [], 'DIST_CODE', 'DIST_NOMB', 4);
+            llenarOpcionesExportacion('export-corregimiento', [], 'CORR_CODE', 'CORR_NOMB', 6);
+            actualizarFiltroExportacion();
+        }
+
         function resetearMapa() {
             colorProvinciaSeleccionada = null;
             document.getElementById('btn-back').classList.remove('visible');
+            resetearDescargaConjunto();
 
             document.getElementById('selector-provincia').selectedIndex = 0;
             resetearSelectoresHijos();
@@ -2508,6 +2637,10 @@
         window.volverNivel = volverNivel;
         window.exportarGeoJSON = exportarGeoJSON;
         window.exportarCSV = exportarCSV;
+        window.actualizarFiltroExportacion = actualizarFiltroExportacion;
+        window.actualizarDistritosExportacion = actualizarDistritosExportacion;
+        window.actualizarCorregimientosExportacion = actualizarCorregimientosExportacion;
+        window.exportarConjunto = exportarConjunto;
         window.resetearMapa = resetearMapa;
         window.abrirModal = abrirModal;
         window.cerrarModal = cerrarModal;
